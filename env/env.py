@@ -1,7 +1,7 @@
 from __future__ import print_function
 import numpy as np
-from rendering import *
-from border_constraints import compute_out_of_border_actions
+from .rendering import *
+from .border_constraints import compute_out_of_border_actions
 
 GRID = [(i,j) for j in [-3,-2] for i in [-1,0,1]] + \
 	   [(i,j) for j in [-1,0,1] for i in np.arange(-3,4)] + \
@@ -18,6 +18,14 @@ class Env(object):
 	def __init__(self):
 		'''
 		instanciates an object of the class Env by initializing the number of pegs in the game as well as their positions on the grid.
+
+		Parameters
+		----------
+
+
+		Attributes
+		----------
+
 		'''
 		#super(ClassName, self).__init__()
 		self.n_pegs = N_PEGS 
@@ -50,13 +58,14 @@ class Env(object):
 
 		Parameters
 		----------
-		action : tuple of ints (position_id, move_id). position_id indicates the id of the position on the grid according to the 
-			variable GRID. move_id is in {0,1,2,3} and indicates whether the move to make is up, down, right or left according to the
-			variable ACTION_NAMES.
+		action : tuple of ints (position_id, move_id) 
+			position_id indicates the id of the position on the grid according to the variable GRID. move_id is in {0,1,2,3} and 
+			indicates whether the move to make is up, down, right or left according to the variable ACTION_NAMES.
 
 		Returns
 		-------
-			out : a tuple (reward, next_state, end). reward is a float, next_state is a 2d-array, and end is a bool. 
+		out : a tuple (reward, next_state, end)
+			reward is a float, next_state is a 2d-array, and end is a bool. 
 		'''
 		# update state of the env
 		pos_id, move_id = action
@@ -112,19 +121,38 @@ class Env(object):
 
 		Parameters
 		----------
-		pos : a tuple of ints representing the position considered in the grid. 
-		move_id : an int giving the id of the move considered.
+		pos : tuple of ints
+			A tuple representing the position considered in the grid. 
+		move_id : int
+			Gives the id of the move considered.
 
 		Returns
 		-------
-			out : a bool indicating if the move is fesible or not. 
+		out : bool
+			A boolean indicating if the move is feasible or not. 
 		'''
 		x,y = pos
 		d_x, d_y = MOVES[move_id]
 		return self.pegs[(x + d_x, y + d_y)] == 1 and self.pegs[(x + 2*d_x, y + 2*d_y)] == 0
 
 
-	def render(self):
+	def render(self, show_available_moves=False):
 		'''
+		Renders the current state of the environment.
 
+		Parameters
+		----------
+		show_available_moves : bool (default False)
+			Whether or not to show, for each move (up, down, right, left) the pegs which are available to play.
 		'''
+		plot_pegs(self.pegs)
+
+		if show_available_moves:
+			print('\n\n\n')
+
+			plt.figure(figsize=(12,12))
+			for move in range(4):
+				plt.subplot(2,2,move+1)
+				plot_available_moves(GRID, self.pegs, self.get_feasible_actions(), move, ACTION_NAMES)
+				plt.show()
+				#plt.gcf().clear()

@@ -12,8 +12,8 @@ def compute_out_of_border_actions(grid):
 
 	Returns
 	-------
-		out : a 2d-array of bools, specifying, for each position, if moves will end up out of the borders of the game (True) or not 
-		(False).
+	out : 2d-array of bools
+		An array specifying, for each position, if moves will end up out of the borders of the game (True) or not (False).
 	'''
 	out_of_border = np.zeros((len(grid), 4), dtype=bool)
 	for i, pos in enumerate(grid):
