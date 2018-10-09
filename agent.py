@@ -64,19 +64,19 @@ class RandomAgent(Agent):
 		if self.render:
 			env.init_fig()
 			env.render()
-			sleep(2)
+			sleep(1.5)
 		while not end:
 			action = self.select_action(env.get_feasible_actions())
 			if self.render:
 				env.render(action=action, show_action=True)
-				sleep(1)
+				sleep(0.8)
 			reward, state, end = env.step(action)
 			if self.render:
 				env.render()
-				sleep(1)
+				sleep(0.6)
 		if self.render:
 			env.render()
-			sleep(3)
+			sleep(2)
 			plt.close()
 
 

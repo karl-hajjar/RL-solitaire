@@ -17,7 +17,7 @@ OUT_OF_BORDER_ACTIONS = compute_out_of_border_actions(GRID)
 class Env(object):
 	"""A class implementing the solitaire environment"""
 
-	def __init__(self, verbose=False, init_fig=False, interactive_plot=False, show_axes=False):
+	def __init__(self, verbose=False, init_fig=False, interactive_plot=False):
 		'''
 		Instanciates an object of the class Env by initializing the number of pegs in the game as well as their positions on the grid.
 
@@ -43,7 +43,8 @@ class Env(object):
 		assert self.n_pegs == 32
 		self._init_pegs()
 		if self.init_fig:
-			self.init_fig(interactive_plot, show_axes)
+			self.init_fig(interactive_plot)
+			pass
 		else:
 			self.interactive_plot = False
 			self.show_axes = False
@@ -60,7 +61,7 @@ class Env(object):
 		self.pegs[(0,0)] = 0 
 
 
-	def init_fig(self, interactive_plot=True, show_axes=False):
+	def init_fig(self, interactive_plot=True):
 		'''
 		Initializes the figure and axes for the rendering.
 
@@ -68,15 +69,10 @@ class Env(object):
 		----------
 		interactive_plot : bool (default True)
 			Whether the plot is interactive or not.
-		show_axes : bool (default False)
-			Whether to display the axes in the rendering or not.
 		'''
 		if interactive_plot:
 			plt.ion()
 		self.fig = plt.figure(figsize=(10,10))
-		self.ax = plt.gca()
-		self.ax.axes.get_xaxis().set_visible(show_axes)
-		self.ax.axes.get_yaxis().set_visible(show_axes)
 
 
 	def reset(self):
@@ -173,7 +169,7 @@ class Env(object):
 		return self.pegs[(x + d_x, y + d_y)] == 1 and self.pegs[(x + 2*d_x, y + 2*d_y)] == 0
 
 
-	def render(self, action=None, show_action=False):
+	def render(self, action=None, show_action=False, show_axes=False):
 		'''
 		Renders the current state of the environment.
 
@@ -184,8 +180,12 @@ class Env(object):
 		show_action : bool (default False)
 			Indicates whether or not to change the color of the peg being moved and the peg being jumped over in the rendering, in 
 			order to be able to visualise the action selected.
+		show_axes : bool (default False)
+			Whether to display the axes in the rendering or not.
 		'''
-		self.ax = plt.gca()
+		ax = plt.gca()
+		ax.axes.get_xaxis().set_visible(show_axes)
+		ax.axes.get_yaxis().set_visible(show_axes)
 		if show_action:
 			assert action is not None
 			pos_id, move_id = action
@@ -195,21 +195,21 @@ class Env(object):
 			for pos, value in self.pegs.items():
 				if value == 1:
 					if pos == (x,y):
-						self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='brown', fill=True))
+						ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.495, color='brown', fill=True))
 					elif pos == jumped_pos:
-						self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='black', fill=True))
+						ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.495, color='black', fill=True))
 					else:
-						self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=True))
+						ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.495, color='burlywood', fill=True))
 				if value == 0:
-					self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=False, linewidth=1.5))
+					ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.495, color='burlywood', fill=False, linewidth=1.5))
 
 		else:
 			assert action is None
 			for pos, value in self.pegs.items():
 			    if value == 1:
-			        self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=True))
+			        ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.495, color='burlywood', fill=True))
 			    if value == 0:
-			        self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=False, linewidth=1.5))
+			        ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.495, color='burlywood', fill=False, linewidth=1.5))
 
 
 		plt.ylim(-4, 4)
@@ -217,4 +217,4 @@ class Env(object):
 		plt.axis('scaled')
 		plt.title('Current State of the Board')
 		self.fig.canvas.draw()
-		[p.remove() for p in reversed(self.ax.patches)]
+		[p.remove() for p in reversed(ax.patches)]
