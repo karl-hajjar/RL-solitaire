@@ -16,7 +16,7 @@ def plot_pegs(pegs, action=None, show_action=False):
 		jumped_pos = (x + dx, y + dy)
 		for key, value in env.pegs.items():
 			if value == 1:
-				if key == action_pos:
+				if key == (x,y):
 					ax.add_patch(matplotlib.patches.Circle(xy=key, radius=0.5, color='brown', fill=True))
 				elif key == jumped_pos:
 					ax.add_patch(matplotlib.patches.Circle(xy=key, radius=0.5, color='black', fill=True))
@@ -52,12 +52,11 @@ ax=plt.gca()
 
 i = 0
 while not end:
-	print('------- i = {} -------'.format(i))
 	actions = np.argwhere(env.get_feasible_actions())
 	action = actions[np.random.randint(0,len(actions))]
-	action_pos = GRID[action[0]]
-	dx, dy = MOVES[action[1]]
-	jumped_pos = (action_pos[0] + dx, action_pos[1] + dy)
+	# action_pos = GRID[action[0]]
+	# dx, dy = MOVES[action[1]]
+	# jumped_pos = (action_pos[0] + dx, action_pos[1] + dy)
 
 	# ax=plt.gca()
 	# for key, value in env.pegs.items():

@@ -1,5 +1,7 @@
 from __future__ import print_function
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
 from .rendering import *
 from .border_constraints import compute_out_of_border_actions
 
@@ -15,27 +17,42 @@ OUT_OF_BORDER_ACTIONS = compute_out_of_border_actions(GRID)
 class Env(object):
 	"""A class implementing the solitaire environment"""
 
-	def __init__(self):
+	def __init__(self, verbose=False, init_fig=False, interactive_plot=False, show_axes=False):
 		'''
-		instanciates an object of the class Env by initializing the number of pegs in the game as well as their positions on the grid.
+		Instanciates an object of the class Env by initializing the number of pegs in the game as well as their positions on the grid.
 
 		Parameters
 		----------
-
+		verbose : bool (default False)
+			Whether or not to display messages.
+		init_fig : bool (default False)
+			Whether or not to intialize a figure for rendering.
 
 		Attributes
 		----------
-
+		n_pegs : int
+			Number of pegs remaining on the board
+		pegs : dict of tuples of ints
+			Keys are the positions in the grid, and values are binary ints indicating the presence (1) or abscence (0) of pegs.
+		fig :  matplotlib.figure.Figure
+			The figure to render plots
+		ax : matplotlib.axes.Axes
+			Axes of the plot
 		'''
-		#super(ClassName, self).__init__()
 		self.n_pegs = N_PEGS 
 		assert self.n_pegs == 32
 		self._init_pegs()
+		if self.init_fig:
+			self.init_fig(interactive_plot, show_axes)
+		else:
+			self.interactive_plot = False
+			self.show_axes = False
+		self.verbose = verbose
 
 
 	def _init_pegs(self):
 		'''
-		initializes the positions of the pegs in the grid : puts a peg on each position except the center one (0,0).
+		Initializes the positions of the pegs in the grid : puts a peg on each position except the center one (0,0).
 		'''
 		self.pegs = dict({})
 		for pos in GRID:
@@ -43,11 +60,31 @@ class Env(object):
 		self.pegs[(0,0)] = 0 
 
 
+	def init_fig(self, interactive_plot=True, show_axes=False):
+		'''
+		Initializes the figure and axes for the rendering.
+
+		Parameters
+		----------
+		interactive_plot : bool (default True)
+			Whether the plot is interactive or not.
+		show_axes : bool (default False)
+			Whether to display the axes in the rendering or not.
+		'''
+		if interactive_plot:
+			plt.ion()
+		self.fig = plt.figure(figsize=(10,10))
+		self.ax = plt.gca()
+		self.ax.axes.get_xaxis().set_visible(show_axes)
+		self.ax.axes.get_yaxis().set_visible(show_axes)
+
+
 	def reset(self):
 		'''
-		resets the environment to its initial state.
+		Resets the environment to its initial state.
 		'''
-		self.__intit__()
+		self.n_pegs = N_PEGS
+		self._init_pegs()
 
 
 	def step(self, action):
@@ -64,7 +101,7 @@ class Env(object):
 
 		Returns
 		-------
-		out : a tuple (reward, next_state, end)
+		out : tuple (reward, next_state, end)
 			reward is a float, next_state is a 2d-array, and end is a bool. 
 		'''
 		# update state of the env
@@ -136,23 +173,48 @@ class Env(object):
 		return self.pegs[(x + d_x, y + d_y)] == 1 and self.pegs[(x + 2*d_x, y + 2*d_y)] == 0
 
 
-	def render(self, show_available_moves=False):
+	def render(self, action=None, show_action=False):
 		'''
 		Renders the current state of the environment.
 
 		Parameters
 		----------
-		show_available_moves : bool (default False)
-			Whether or not to show, for each move (up, down, right, left) the pegs which are available to play.
+		action : tuple of ints or None (default None)
+			If not None, a tuple (pos_id, move_id) of ints indicating the id of the position in the grid, and the id of the move.
+		show_action : bool (default False)
+			Indicates whether or not to change the color of the peg being moved and the peg being jumped over in the rendering, in 
+			order to be able to visualise the action selected.
 		'''
-		plot_pegs(self.pegs)
+		self.ax = plt.gca()
+		if show_action:
+			assert action is not None
+			pos_id, move_id = action
+			x,y = GRID[pos_id]
+			dx,dy = MOVES[move_id]
+			jumped_pos = (x + dx, y + dy)
+			for pos, value in self.pegs.items():
+				if value == 1:
+					if pos == (x,y):
+						self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='brown', fill=True))
+					elif pos == jumped_pos:
+						self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='black', fill=True))
+					else:
+						self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=True))
+				if value == 0:
+					self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=False, linewidth=1.5))
 
-		if show_available_moves:
-			print('\n\n\n')
+		else:
+			assert action is None
+			for pos, value in self.pegs.items():
+			    if value == 1:
+			        self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=True))
+			    if value == 0:
+			        self.ax.add_patch(matplotlib.patches.Circle(xy=pos, radius=0.5, color='burlywood', fill=False, linewidth=1.5))
 
-			plt.figure(figsize=(12,12))
-			for move in range(4):
-				plt.subplot(2,2,move+1)
-				plot_available_moves(GRID, self.pegs, self.get_feasible_actions(), move, ACTION_NAMES)
-				plt.show()
-				#plt.gcf().clear()
+
+		plt.ylim(-4, 4)
+		plt.xlim(-4, 4)
+		plt.axis('scaled')
+		plt.title('Current State of the Board')
+		self.fig.canvas.draw()
+		[p.remove() for p in reversed(self.ax.patches)]
