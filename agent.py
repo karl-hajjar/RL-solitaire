@@ -2,6 +2,7 @@ import numpy as np
 from env.env import GRID, ACTION_NAMES
 from time import time, sleep
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
 class Agent(object):
 	"""Agent is the base class for implementing agents to play the game of solitaire"""
@@ -61,18 +62,18 @@ class RandomAgent(Agent):
 			The environment with which the agent will interact.
 		'''
 		end = False
-		if self.render:
+		if self.render: # render the state of the board at the begining of the game 
 			env.init_fig()
 			env.render()
 			sleep(1.5)
 		while not end:
 			action = self.select_action(env.get_feasible_actions())
 			if self.render:
-				env.render(action=action, show_action=True)
+				env.render(action=action, show_action=True) # render a first time displaying the action selected
 				sleep(0.8)
 			reward, state, end = env.step(action)
-			if self.render:
-				env.render()
+			if self.render: 
+				env.render() # render a second time the state of the board after the action is played
 				sleep(0.6)
 		if self.render:
 			env.render()
@@ -97,3 +98,12 @@ class RandomAgent(Agent):
 		actions = np.argwhere(feasible_actions)
 		return actions[np.random.randint(0,len(actions))]
 
+
+
+class ActorCriticAgent(Agent):
+	"""ActorCriticAgent implements a class of agents using the actor-critic method"""
+
+	def __init__(self, actor_config, critic_config):
+		super().__init__()
+
+		

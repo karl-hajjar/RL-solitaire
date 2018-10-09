@@ -39,15 +39,14 @@ class Env(object):
 		ax : matplotlib.axes.Axes
 			Axes of the plot
 		'''
-		self.n_pegs = N_PEGS 
+		self.n_pegs = N_PEGS
 		assert self.n_pegs == 32
 		self._init_pegs()
-		if self.init_fig:
+		if init_fig:
 			self.init_fig(interactive_plot)
 			pass
 		else:
 			self.interactive_plot = False
-			self.show_axes = False
 		self.verbose = verbose
 
 
@@ -112,17 +111,19 @@ class Env(object):
 
 		# check for game end
 		if self.n_pegs == 1:
-			print('End of the game, you solved the puzzle !')
-			return 1, self.pegs, True
+			if self.verbose:
+				print('End of the game, you solved the puzzle !')
+			return 1, self.state, True
 
 		else:
 			# compute possible next moves
 			actions = self.get_feasible_actions()
 			if np.sum(actions) == 0: # no more actions available
-				print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
-				return -self.n_pegs, self.pegs, True
+				if self.verbose:
+					print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
+				return -self.n_pegs, self.state, True
 			else:
-				return 0, self.pegs, False
+				return 0, self.state, False
 
 
 	def get_feasible_actions(self):
@@ -167,6 +168,17 @@ class Env(object):
 		x,y = pos
 		d_x, d_y = MOVES[move_id]
 		return self.pegs[(x + d_x, y + d_y)] == 1 and self.pegs[(x + 2*d_x, y + 2*d_y)] == 0
+
+	@property
+	def state(self):
+		'''
+		Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are -1 if the position
+		is outsibe the board, 1 if there is a peg at this position, and 0 otherwise. 
+		'''
+		state = -np.ones((7,7), dtype=np.int8)
+		for pos, value in self.pegs.items():
+			state[pos[0]+3, pos[1]+3] = value
+		return state
 
 
 	def render(self, action=None, show_action=False, show_axes=False):

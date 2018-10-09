@@ -1,0 +1,27 @@
+Files:
+
+
+Actor:
+  name: 'Actor'
+  n_filters: 256
+  use_bias: true
+  bias_init_const: 0.0008
+  lr: 1.0e-4
+  grad_clip_norm: 5.0     # norm of gradients to clip
+  reg_l2_coeff: 1.0e-4    # coeff of l2 regularisation loss in total loss 
+  activation: 'elu'
+
+Critic:
+  name: 'Critic'
+  n_filters: 256
+  use_bias: true
+  bias_init_const: 0.0008
+  lr: 1.0e-4
+  grad_clip_norm: 5.0     # norm of gradients to clip
+  activation: 'elu'
+  value_activation: 'tanh'   # activation for the output layer of the value head
+
+Training:
+  init_checkpoint: 0      # 0 for training from scratch, any > 0 number for restoring the model from the last checkpoint 
+  n_iter: 100            # number of gradient descent steps at each iteration
+  display_every: 1
