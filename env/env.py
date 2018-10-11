@@ -42,6 +42,7 @@ class Env(object):
 		self.n_pegs = N_PEGS
 		assert self.n_pegs == 32
 		self._init_pegs()
+		self.feasible_actions = self.get_feasible_actions()
 		if init_fig:
 			self.init_fig(interactive_plot)
 			pass
@@ -117,8 +118,8 @@ class Env(object):
 
 		else:
 			# compute possible next moves
-			actions = self.get_feasible_actions()
-			if np.sum(actions) == 0: # no more actions available
+			self.feasible_actions = self.get_feasible_actions()
+			if np.sum(self.feasible_actions) == 0: # no more actions available
 				if self.verbose:
 					print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
 				return -self.n_pegs, self.state, True
