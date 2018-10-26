@@ -1,10 +1,13 @@
 import numpy as np
-from env.env import GRID, ACTION_NAMES
 from time import time, sleep
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import copy
-from multiprocessing.dummy import Pool as ThreadPool 
+from multiprocessing.dummy import Pool as ThreadPool
+from tqdm import tqdm
+
+from env.env import GRID, ACTION_NAMES
+from network.network import Net
 
 class Agent(object):
 	"""Agent is the base class for implementing agents to play the game of solitaire"""
@@ -105,25 +108,34 @@ class RandomAgent(Agent):
 class ActorCriticAgent(Agent):
 	"""ActorCriticAgent implements a class of agents using the actor-critic method"""
 
-	def __init__(self, env, actor_config, critic_config):
+	def __init__(self, env, net_config, name="Actor-Critic Agent", seed=None, render=False):
 		super().__init__()
 		self.env = env
+		self.net = Net(net_config)
+		self.net.build()
+		self.net.initialize()
 
-	def collect_data(self, net):
+		if seed is None:
+			np.random.seed(int(time()))
+		self.name = name
+		self.render = render
+
+
+	def collect_data(self, env):
 		# return state, advantage, critic_target
-		state = self.env.state
-		action = self.select_action(state, env.feasible_actions, net=net)
+		state = env.state
+		action = self.select_action(state, env.feasible_actions)
 		reward, next_state, end = env.step(action)
-		state_value, next_state_value = net.value([state, next_state]) # evaluate state values in a batch to gain time
+		state_value, next_state_value = net.get_value([state, next_state]) # evaluate state values in a batch to save time
 		critic_target = reward + next_state_value 
 		advantage = critic_target - state_value 
-		return [state, advantage, critic_target], end
+		action_prob = self.net.get_policy(state)[action]
+		data = [state, advantage, action_prob, critic_target]
+		return data, end
 
 
-	def select_action(self, state, feasible_actions, net=None, greedy=False):
-		if net is None:
-			net = self.net
-		policy = net.policy(state)
+	def select_action(self, state, feasible_actions, greedy=False):
+		policy = self.net.get_policy(state)
 		policy[~feasible_actions] = 0 # mask out infeasible actions
 		policy /= np.sum(policy) # renormalize
 		if greedy:
@@ -131,36 +143,25 @@ class ActorCriticAgent(Agent):
 			return max_indices[np.random.randint(0,len(max_indices))]
 		else:
 			index = np.random.choice(range(policy.size), p=policy.ravel())
-			return divmod(index, 4)
+			return divmod(index, policy.shape[1])
 
 
-	def optimize(self, data):
-		# update network weights
+	def train(self, env, n_iter, n_workers):
+		for it in tqdm(range(n_iter), desc="parallel gameplay iterations"):
 
+			envs = [env for _ in range(n_workers)]
+			ended = [False for _ in range(n_workers)]
 
-	def copy(self):
-		# copies attributes except network
-		agent = ActorCriticAgent(self.env, self.actor_config, self.critic_config)
-		return agent
+			pool = ThreadPool(n_workers) 
+			while np.sum(ended) < n_workers:
+				# collect data from workers using same network stored only once in the base agent
+				results = pool.map(self.collect_data, envs[~ended])
+				data, ended_new = zip(*results)
+				ended[~ended] = ended_new
+				self.net.optimize(data)
 
-
-	def train(self, n_workers):
-		workers = [self.copy() for _ in range(n_workers)]
-		ended = [False for _ in range(n_workers)]
-
-		pool = ThreadPool(n_workers) 
-		while np.sum(not_ended) < n_workers:
-			# collect data from workers using same network stored once
-			results = pool.map(lambda worker: worker.collect_data(self.net), workers[~ended]) 
-			data, ended_new = zip(*results)
-			ended[~ended] = ended_new
-			self.optimize(data)
-
-
-
-		pool.close()
-		pool.join()
-		#for i in range(n_workers):
+			pool.close()
+			pool.join()
 
 
 

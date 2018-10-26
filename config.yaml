@@ -1,27 +1,22 @@
 Files:
 
-
-Actor:
-  name: 'Actor'
-  n_filters: 256
+Net:
+  name: 'Actor-Critic'
   use_bias: true
   bias_init_const: 0.0008
-  lr: 1.0e-4
-  grad_clip_norm: 5.0     # norm of gradients to clip
-  reg_l2_coeff: 1.0e-4    # coeff of l2 regularisation loss in total loss 
+  grad_clip_norm: 10.0     # norm of gradients to clip
+  n_filters: 64
   activation: 'elu'
-
-Critic:
-  name: 'Critic'
-  n_filters: 256
-  use_bias: true
-  bias_init_const: 0.0008
-  lr: 1.0e-4
-  grad_clip_norm: 5.0     # norm of gradients to clip
-  activation: 'elu'
-  value_activation: 'tanh'   # activation for the output layer of the value head
+  state_embedding_size: 128
+  embedding_lr: 2.0e-4
+  actor_lr: 2.0e-4
+  critic_lr: 2.0e-4
+  actor_coeff: 1.0
+  critic_coeff: 1.0
+  reg_coeff: 1.0e-4
+  value_activation: 'identity'
 
 Training:
   init_checkpoint: 0      # 0 for training from scratch, any > 0 number for restoring the model from the last checkpoint 
-  n_iter: 100            # number of gradient descent steps at each iteration
+  n_iter: 100             # number of gradient descent steps at each iteration
   display_every: 1
