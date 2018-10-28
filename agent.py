@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import copy
 from multiprocessing.dummy import Pool as ThreadPool
-from tqdm import tqdm
 
 from env.env import GRID, ACTION_NAMES
 from network.network import Net
@@ -126,11 +125,15 @@ class ActorCriticAgent(Agent):
 		state = env.state
 		action = self.select_action(state, env.feasible_actions)
 		reward, next_state, end = env.step(action)
-		state_value, next_state_value = net.get_value([state, next_state]) # evaluate state values in a batch to save time
+		state_value, next_state_value = net.get_value(np.array([state, next_state])) # evaluate state values in a batch to save time
 		critic_target = reward + next_state_value 
 		advantage = critic_target - state_value 
 		action_prob = self.net.get_policy(state)[action]
-		data = [state, advantage, action_prob, critic_target]
+		data = dict({"state" : state, 
+					 "advantage" : advantage, 
+					 "action_prob" : action_prob,
+					 "critic_target" : critic_target})
+		#data = [state, advantage, action_prob, critic_target]
 		return data, end
 
 
@@ -146,22 +149,31 @@ class ActorCriticAgent(Agent):
 			return divmod(index, policy.shape[1])
 
 
-	def train(self, env, n_iter, n_workers):
-		for it in tqdm(range(n_iter), desc="parallel gameplay iterations"):
-
+	def train(self, env, n_workers, display_every):
 			envs = [env for _ in range(n_workers)]
 			ended = [False for _ in range(n_workers)]
 
-			pool = ThreadPool(n_workers) 
+			pool = ThreadPool(n_workers)
+			tf_logs = []
+			cmpt = 0
 			while np.sum(ended) < n_workers:
 				# collect data from workers using same network stored only once in the base agent
 				results = pool.map(self.collect_data, envs[~ended])
 				data, ended_new = zip(*results)
 				ended[~ended] = ended_new
-				self.net.optimize(data)
+				log = self.net.optimize(data)
+				tf_logs.append(log)
+
+				if cmpt % display_every == 0:
+					print('Losses at step ', cmpt)
+					print('loss : {:.3f} | actor loss : {:.3f} | critic loss : {:.3f} | reg loss : {:.3f}')
+					print('')
+
 
 			pool.close()
 			pool.join()
+
+			return tf_logs
 
 
 

@@ -4,10 +4,10 @@ from build import *
 
 
 ACTIVATION_DICT = dict({"identity" : tf.identity,
-					   "relu" : tf.nn.relu,
-					   "elu" : tf.nn.elu,
-					   "sigmoid" : tf.nn.sigmoid,
-   					   "tanh" : tf.nn.tanh})
+					    "relu" : tf.nn.relu,
+					    "elu" : tf.nn.elu,
+					    "sigmoid" : tf.nn.sigmoid,
+   					    "tanh" : tf.nn.tanh})
 
 class Net(object):
 	"""A class implementing a policy-value network for the Actor-Critic method"""
@@ -21,8 +21,7 @@ class Net(object):
 		self.activation = ACTIVATION_DICT[config['activation']]
 		self.state_embedding_size = config['state_embedding_size']
 		self.embedding_lr = config['embedding_lr']
-		self.actor_lr = config['actor_lr']
-		self.critic_lr = config['critic_lr']
+		self.lr = config['lr']
 		self.actor_coeff = config['actor_loss_coeff']
 		self.critic_coeff = config['critic_loss_coeff']
 		self.reg_coeff = config['reg_loss_coeff']
@@ -40,7 +39,7 @@ class Net(object):
 		l2_regularizer = tf.contrib.layers.l2_regularizer(scale=self.coeff_reg_l2)
 
 		with tf.name_scope('Inputs'):
-			state = tf.stop_gradient(tf.Placeholder(dtype=tf.int8, shape=(None, 7, 7), name='State'))
+			state = tf.stop_gradient(tf.placeholder(dtype=tf.int8, shape=(None, 7, 7), name='State'))
 
 		with tf.name_scope('Embedding'):
 			state_emb = state_embedding(state, 
@@ -53,8 +52,25 @@ class Net(object):
 				bias_init_const=self.bias_init_const)
 
 		with tf.name_scope('Outputs'):
-			self.value = self.get_value(state_emb)
-			self.policy = self.get_policy(state_emb)
+			self.value = self.value_head(state_emb, 
+				n_filters=self.n_filters, 
+				activation=self.activation, 
+				kernel_regularizer=l2_regularizer,
+				use_bias=self.use_bias,
+				bias_init_const=self.bias_init_const,
+				output_size=self.state_embedding_size)
+
+			policy_logits = policy_head(state_emb, 
+						n_filters=self.n_filters, 
+						kernel_size=(2,2), 
+						strides=(1,1),
+						activation=self.activation, 
+						kernel_regularizer=l2_regularizer,
+						use_bias=self.use_bias,
+						bias_init_const=self.bias_init_const,
+						output_size=self.state_embedding_size)
+
+			self.policy = tf.nn.softmax(self.policy)
 
 		with tf.name_scope('Targets'):
 			self.value_target = tf.placeholder(tf.float32, [None, 1], name="value target")
@@ -86,54 +102,35 @@ class Net(object):
 
 
 	def get_policy(self, state):
-		# maybe use a session here to return the policy ? 
-
-		# with tf.Session() as sess:
-		# 	policy_logits = policy_head(state, 
-		# 				n_filters=self.n_filters, 
-		# 				kernel_size=(2,2), 
-		# 				strides=(1,1),
-		# 				activation=self.activation, 
-		# 				kernel_regularizer=l2_regularizer,
-		# 				use_bias=self.use_bias,
-		# 				bias_init_const=self.bias_init_const,
-		# 				output_size=self.state_embedding_size)
-
-		#	policy = tf.nn.softmax(policy_logits)
-
-		# sess.run(tf.global_variable_initializer())
-		# policy = sess.run(policy)
-
-		policy = policy_head(state, 
-			n_filters=self.n_filters, 
-			kernel_size=(2,2), 
-			strides=(1,1),
-			activation=self.activation, 
-			kernel_regularizer=l2_regularizer,
-			use_bias=self.use_bias,
-			bias_init_const=self.bias_init_const)
+		policy = self.sess.run(self.policy, feed_dict={state : state})
 		return policy
 
 
 	def get_value(self, state):
-		value = value_head(state, 
-			n_filters=self.n_filters, 
-			activation=self.activation, 
-			kernel_regularizer=l2_regularizer,
-			use_bias=self.use_bias,
-			bias_init_const=self.bias_init_const,
-			output_size=self.state_embedding_size)
+		value = self.sess.run(self.value, feed_dict={state : state})
+		return value		
 
 
 	def initialize(self):
 		initializer = tf.global_variable_initializer()
 		self.session.run(initializer)
 
+
 	def optimize(self, data):
-			for d in data:
-			feed_dict = {}
+			feed_dict = {state : data["state"], 
+						 value_target : data["critic_target"], 
+						 advantage : data["advantage"],
+						 action_prob : data["action_prob"]}
+			fetches = [self.value, self.policy, self.critic_loss, self.actor_loss, self.l2_loss, self.loss, self.opt_step]
+			value, policy, critic_loss, actor_loss, l2_loss, loss, _ = self.sess.run(fetches,
+																					 feed_dict=feed_dict)
+			entropies = [-np.sum(p * np.log(p)) for p in policy]
 
-			value, policy, critic_loss, actor_loss, l2_loss, loss, _ = self.sess.run([self.value, self.policy, ..., self.opt_step])
-
-			# track in tensorboard
+			# track values
+			tf_logs = dict({"value" : np.mean(value), 
+							"entropie" : np.mean(entropies),
+							"critic_loss" : critic_loss,
+							"actor_loss" : actor_loss,
+							"l2_loss" : l2_loss})
+			return tf_logs
 
