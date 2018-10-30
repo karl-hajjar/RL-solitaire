@@ -1,30 +1,29 @@
 Files:
   checkpoints_dir: 'checkpoints/'
   tensorboard_log_dir: 'tensorboard/'
-  results_log_dir: 'results/'
+  results_log_path: 'results.log'
 
 Network:
-  name: 'Actor-Critic'
+  name: 'actor-critic'
   use_bias: true
   bias_init_const: 0.0008
   grad_clip_norm: 10.0     # norm of gradients to clip
   n_filters: 64
   activation: 'elu'
   state_embedding_size: 128
-  embedding_lr: 2.0e-4
-  lr: 2.0e-4
+  lr: 1.0e-5
   actor_coeff: 1.0
   critic_coeff: 1.0
-  reg_coeff: 1.0e-4
+  reg_coeff: 2.0e-2
   value_activation: 'identity'
 
 Training:
   init_checkpoint: 0      # 0 for training from scratch, any number > 0 for restoring the model from the last checkpoint 
   n_iter: 100
-  n_games: 16            
-  n_workers: 8
+  n_games: 32            
+  n_workers: 16
   display_every: 1
 
 Evaluation:
   n_games: 30
-  n_workers: 10
+  n_workers: 15

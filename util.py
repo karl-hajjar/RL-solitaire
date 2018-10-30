@@ -34,10 +34,11 @@ def get_latest_checkpoint(path):
 	return latest_checkpoint
 
 
-def mask_out(policy, feasible_actions):
-	for i, (x,y) in enumerate(GRID):
-		policy[x, y, ~feasible_actions[i]] = 0
-	return policy
+def mask_out(policy, feasible_actions, grid):
+	mask = np.zeros_like(policy)
+	for i, (x,y) in enumerate(grid):
+		mask[x+3, y+3, feasible_actions[i]] = policy[x+3, y+3, feasible_actions[i]]
+	return mask
 
 
 def softmax(target, axis=None, name=None):

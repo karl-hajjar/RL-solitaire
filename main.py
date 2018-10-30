@@ -5,13 +5,15 @@ from time import time
 from tqdm import tqdm
 import os
 import pickle
+import logging
 
 from env.env import Env
 from agent import ActorCriticAgent
+from util import read_config, flush_or_create
 
 
 def main():
-	config = read_config("config/config.yaml")
+	config = read_config("config.yaml")
 	network_config = config['Network']
 	training_config = config['Training']
 	files_config = config['Files']
@@ -30,7 +32,7 @@ def main():
 
 	print('## Training params')
 	print('Number of iteration : ', training_config['n_iter'])
-	print('Learning rate : ', training_config["lr"])
+	print('Learning rate : ', network_config["lr"])
 	print('Number of workers : ', training_config["n_workers"])
 	print('')
 
@@ -38,19 +40,15 @@ def main():
 	model_name = network_config['name']
 	checkpoints_dir = os.path.join(model_name, files_config["checkpoints_dir"])
 	tensorboard_log_dir = os.path.join(model_name, files_config["tensorboard_log_dir"])
-	results_log_dir = os.path.join(model_name, files_config["results_log_dir"])
+	results_log_path = os.path.join(model_name, files_config["results_log_path"])
 
 	env = Env()
-	agent = ActorCriticAgent(env=env, net_config=network_config)
+	agent = ActorCriticAgent(network_config, checkpoints_dir, tensorboard_log_dir)
 
 	# if train from scratch
-	if training_params["init_checkpoint"] == 0:
-	    # initialize directory for saving logs and results
-	    flush_or_create(results_log_dir)
+	if training_config["init_checkpoint"] == 0:
 	    # initialize dir for tensorboard 
 	    flush_or_create(tensorboard_log_dir)
-	    # initialize checkpoint directory
-	    agent.net.initialize(checkpoints_dir)
 	    # initialize iteration number
 	    start = 0
 
@@ -63,8 +61,7 @@ def main():
 	    start = latest_checkpoint
 
 	# intialize the summary writer and results log file
-	agent.net.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, agent.net.sess.graph)
-	log_file = open(results_log_dir, "wb+") # open log file to write in during evaluation
+	log_file = open(results_log_path, "wb+") # open log file to write in during evaluation
 
 	display_every = training_config["display_every"]
 	n_games_train = training_config["n_games"]
@@ -73,20 +70,26 @@ def main():
 	n_workers_eval = eval_config["n_workers"]
 	summary_dict = dict({})
 
+	logger = logging.getLogger(__name__)
+
 	for it in tqdm(np.arange(start, training_config["n_iter"]), desc="parallel gameplay iterations"):
 		# play games to generate data and train the network
 		env.reset()
-		tb_summaries = agent.train(env, n_games_train, n_workers_train, display_every)
+		try:
+			agent.train(env, n_games_train, n_workers_train, display_every, it)
+		except Exception as error:
+			net.summary_writer.close()
+			agent.net.sess.close()
+			log_file.close()
+			logger.error(error)
+			raise 
 		agent.net.save_checkpoint(checkpoints_dir, it=it)
 
-		# Write the summaries to file, so they can be displayed in TensorBoard
-		agent.net.summary_writer.add_summary(tb_summaries, it+1)
-		agent.net.summary_writer.flush()
-
 		# play games with latest checkpoint and track average final reward
-		results = agent.evaluate(env, n_games_eval, n_workers_eval, results_log_dir)
+		results = agent.evaluate(env, n_games_eval, n_workers_eval)
 	    # save results
 		pickle.dump(results, log_file)
+		print('')
 
 	net.summary_writer.close()
 	agent.net.sess.close()

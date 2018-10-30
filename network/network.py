@@ -15,7 +15,7 @@ ACTIVATION_DICT = dict({"identity" : tf.identity,
 class Net(object):
 	"""A class implementing a policy-value network for the Actor-Critic method"""
 
-	def __init__(self, config):
+	def __init__(self, config, tb_log_dir):
 		self.name = config['name']
 		self.use_bias = config['use_bias']
 		self.bias_init_const = config['bias_init_const']
@@ -24,7 +24,6 @@ class Net(object):
 		self.activation = ACTIVATION_DICT[config['activation']]
 		self.value_activation = ACTIVATION_DICT[config['value_activation']]
 		self.state_embedding_size = config['state_embedding_size']
-		self.embedding_lr = config['embedding_lr']
 		self.lr = config['lr']
 		self.actor_coeff = config['actor_coeff']
 		self.critic_coeff = config['critic_coeff']
@@ -36,6 +35,9 @@ class Net(object):
 		config.allow_soft_placement = True
 		config.gpu_options.allow_growth = True
 		self.sess = tf.Session(config=config)
+
+		# init summary writer
+		self.summary_writer = tf.summary.FileWriter(tb_log_dir, self.sess.graph)
 	
 
 	def build(self):
@@ -44,7 +46,6 @@ class Net(object):
 
 		with tf.name_scope('Inputs'):
 			self.state = tf.stop_gradient(tf.placeholder(dtype=tf.float32, shape=(None, 7, 7, 1), name='State'))
-			print('state.shape : ', self.state.shape)
 
 		with tf.name_scope('Embedding'):
 			state_emb = state_embedding(self.state, 
@@ -55,7 +56,6 @@ class Net(object):
 				kernel_regularizer=l2_regularizer,
 				use_bias=self.use_bias,
 				bias_init_const=self.bias_init_const)
-			print('state_emb.shape : ', state_emb.shape)
 
 		with tf.name_scope('Outputs'):
 			self.value = value_head(state_emb, 
@@ -66,7 +66,6 @@ class Net(object):
 				use_bias=self.use_bias,
 				bias_init_const=self.bias_init_const,
 				output_size=self.state_embedding_size)
-			print('value.shape : ', self.value.shape)
 
 			self.policy = policy_head(state_emb, 
 						n_filters=self.n_filters, 
@@ -76,11 +75,9 @@ class Net(object):
 						kernel_regularizer=l2_regularizer,
 						use_bias=self.use_bias,
 						bias_init_const=self.bias_init_const)
-			print('policy.shape : ', self.policy.shape)
 
 		with tf.name_scope('Entropy'):
 			self.entropy = tf.map_fn(entropy, self.policy, back_prop=False)
-			print('entropy.shape : ', self.entropy.shape)
 
 		with tf.name_scope('Targets'):
 			self.value_target = tf.placeholder(tf.float32, [None, 1], name="value_target")
@@ -139,12 +136,12 @@ class Net(object):
 
 
 	def get_policy(self, state):
-		policy = self.sess.run(self.policy, feed_dict={state : state})
-		return policy
+		policy = self.sess.run(self.policy, feed_dict={self.state : state})
+		return policy[0]
 
 
 	def get_value(self, state):
-		value = self.sess.run(self.value, feed_dict={state : state})
+		value = self.sess.run(self.value, feed_dict={self.state : state})
 		return value		
 
 
@@ -153,9 +150,7 @@ class Net(object):
 		self.sess.run(init)
 		# saver to save (and later restore) model checkpoints
 		self.saver = tf.train.Saver(max_to_keep=500)
-		save_dir_python = os.path.join(checkpoint_dir, self.name, "python/")
-		flush_or_create(save_dir_python)
-		self.save_checkpoint(checkpoint_dir, self.name, 0)
+		self.save_checkpoint(checkpoint_dir, 0)
 
 
 	def optimize(self, data):
@@ -175,16 +170,13 @@ class Net(object):
 			# 				"policy_loss" : actor_loss,
 			# 				"l2_loss" : l2_loss,
 			# 				"loss" : loss})
-			return summaries
+			return summaries, critic_loss, actor_loss, l2_loss, loss
 
 
-	def save_checkpoint(self, checkpoints_dir, model_name, it):
-		if model_name is None:
-			model_name = self.name
-		save_dir_python = os.path.join(checkpoints_dir, model_name, "python/")
+	def save_checkpoint(self, checkpoints_dir, it):
 		# save model for keeping track and in case reboot is needed
-		track_save_path = os.path.join(save_dir_python, "checkpoint_{}".format(it))
-		self.saver.save(self.sess, track_save_path)
+		save_path = os.path.join(checkpoints_dir, "checkpoint_{}".format(it))
+		self.saver.save(self.sess, save_path)
 
 		# print message
 		if it == 0:

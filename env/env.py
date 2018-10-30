@@ -10,6 +10,14 @@ GRID = [(i,j) for j in [-3,-2] for i in [-1,0,1]] + \
 	   [(i,j) for j in [-1,0,1] for i in np.arange(-3,4)] + \
 	   [(i,j) for j in [2,3] for i in [-1,0,1]]
 
+POS_TO_INDEX = dict({})
+for ind, (x,y) in enumerate(GRID):
+	POS_TO_INDEX[(x+3,y+3)] = ind
+
+print('GRID : \n', GRID)
+print('POS_TO_INDEX : \n', POS_TO_INDEX)
+print('')
+
 N_PEGS = len(GRID) - 1 # center point in the grid does not contain any peg
 ACTION_NAMES = ["up", "down", "right", "left"]
 MOVES = [(0,1), (0,-1), (1,0), (-1,0)]
@@ -142,10 +150,10 @@ class Env(object):
 	@property
 	def feasible_actions(self):
 		'''
-		Returns a 3d-array of bools indicating, for each position on the grid, whether each action (up, down, right, left) is feasible
+		Returns a 2d-array of bools indicating, for each position on the grid, whether each action (up, down, right, left) is feasible
 		(True) or not (False).
 		'''
-		actions = np.ones((7, 7, 4), dtype=bool)
+		actions = np.ones((len(GRID), 4), dtype=bool)
 		# go through all positions
 		for i, pos in enumerate(GRID):
 			if self.pegs[pos] == 0: # if no peg at the position no action feasible from that position
@@ -153,6 +161,8 @@ class Env(object):
 			else:
 				x,y = pos
 				out_of_borders = OUT_OF_BORDER_ACTIONS[i]
+				# print('out_of_borders = ', out_of_borders)
+				# print('actions shape = ', actions.shape)
 				actions[i, out_of_borders==True] = False
 				for k in range(4):
 					if out_of_borders[k] == False:
