@@ -1,6 +1,9 @@
 Files:
+  checkpoints_dir: 'checkpoints/'
+  tensorboard_log_dir: 'tensorboard/'
+  results_log_dir: 'results/'
 
-Net:
+Network:
   name: 'Actor-Critic'
   use_bias: true
   bias_init_const: 0.0008
@@ -16,7 +19,12 @@ Net:
   value_activation: 'identity'
 
 Training:
-  init_checkpoint: 0      # 0 for training from scratch, any > 0 number for restoring the model from the last checkpoint 
-  n_iter: 100             # number of gradient descent steps at each iteration
-  n_workers: 16
+  init_checkpoint: 0      # 0 for training from scratch, any number > 0 for restoring the model from the last checkpoint 
+  n_iter: 100
+  n_games: 16            
+  n_workers: 8
   display_every: 1
+
+Evaluation:
+  n_games: 30
+  n_workers: 10

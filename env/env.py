@@ -2,6 +2,7 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+
 from .rendering import *
 from .border_constraints import compute_out_of_border_actions
 
@@ -42,7 +43,7 @@ class Env(object):
 		self.n_pegs = N_PEGS
 		assert self.n_pegs == 32
 		self._init_pegs()
-		self.feasible_actions = self.get_feasible_actions()
+		#self.feasible_actions = self.get_feasible_actions()
 		if init_fig:
 			self.init_fig(interactive_plot)
 			pass
@@ -118,7 +119,6 @@ class Env(object):
 
 		else:
 			# compute possible next moves
-			self.feasible_actions = self.get_feasible_actions()
 			if np.sum(self.feasible_actions) == 0: # no more actions available
 				if self.verbose:
 					print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
@@ -127,12 +127,25 @@ class Env(object):
 				return 0, self.state, False
 
 
-	def get_feasible_actions(self):
+	@property
+	def state(self):
 		'''
-		Returns a 2d-array of bools indicating, for each position on the grid, whether each action (up, down, right, left) is feasible
+		Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are -1 if the position
+		is outsibe the board, 1 if there is a peg at this position, and 0 otherwise. 
+		'''
+		state = -np.ones((7,7), dtype=np.int8)
+		for pos, value in self.pegs.items():
+			state[pos[0]+3, pos[1]+3] = value
+		return state
+
+
+	@property
+	def feasible_actions(self):
+		'''
+		Returns a 3d-array of bools indicating, for each position on the grid, whether each action (up, down, right, left) is feasible
 		(True) or not (False).
 		'''
-		actions = np.ones((len(GRID), 4), dtype=bool)
+		actions = np.ones((7, 7, 4), dtype=bool)
 		# go through all positions
 		for i, pos in enumerate(GRID):
 			if self.pegs[pos] == 0: # if no peg at the position no action feasible from that position
@@ -169,17 +182,6 @@ class Env(object):
 		x,y = pos
 		d_x, d_y = MOVES[move_id]
 		return self.pegs[(x + d_x, y + d_y)] == 1 and self.pegs[(x + 2*d_x, y + 2*d_y)] == 0
-
-	@property
-	def state(self):
-		'''
-		Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are -1 if the position
-		is outsibe the board, 1 if there is a peg at this position, and 0 otherwise. 
-		'''
-		state = -np.ones((7,7), dtype=np.int8)
-		for pos, value in self.pegs.items():
-			state[pos[0]+3, pos[1]+3] = value
-		return state
 
 
 	def render(self, action=None, show_action=False, show_axes=False):

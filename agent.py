@@ -1,12 +1,14 @@
+from __future__ import print_function
 import numpy as np
-from time import time, sleep
+from time import sleep
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import copy
 from multiprocessing.dummy import Pool as ThreadPool
+from copy import copy
 
 from env.env import GRID, ACTION_NAMES
 from network.network import Net
+from util import mask_out
 
 class Agent(object):
 	"""Agent is the base class for implementing agents to play the game of solitaire"""
@@ -38,7 +40,7 @@ class RandomAgent(Agent):
 		name : string (default "Random Agent")
 			The name of the agent.
 		seed : int or None (default None)
-			The seed to use in numpy.random. If None, the seed is set using the current time.
+			The seed to use in numpy.random. If None, the seed is set using the current time by default.
 		render : bool (default False)
 			Whether or not to display a visual representation of the game as the agent plays.
 
@@ -50,8 +52,8 @@ class RandomAgent(Agent):
 			Whether or not to display a visual representation of the game as the agent plays.
 		'''
 		super().__init__()
-		if seed is None:
-			np.random.seed(int(time()))
+		if seed is not None:
+			np.random.seed(seed)
 		self.name = name
 		self.render = render
 
@@ -114,32 +116,31 @@ class ActorCriticAgent(Agent):
 		self.net.build()
 		self.net.initialize()
 
-		if seed is None:
-			np.random.seed(int(time()))
+		if seed is not None:
+			np.random.seed(seed)
 		self.name = name
 		self.render = render
 
 
 	def collect_data(self, env):
-		# return state, advantage, critic_target
+		# return state, advantage, action, critic_target
 		state = env.state
 		action = self.select_action(state, env.feasible_actions)
 		reward, next_state, end = env.step(action)
-		state_value, next_state_value = net.get_value(np.array([state, next_state])) # evaluate state values in a batch to save time
+		state_value, next_state_value = net.get_value(np.array([state, next_state])).reshape(-1) # evaluate state values in a batch to save time
 		critic_target = reward + next_state_value 
 		advantage = critic_target - state_value 
-		action_prob = self.net.get_policy(state)[action]
+		x,y = GRID[action[0]]
+		action = np.array([x, y, action[1]])
 		data = dict({"state" : state, 
 					 "advantage" : advantage, 
-					 "action_prob" : action_prob,
+					 "action" : action,
 					 "critic_target" : critic_target})
-		#data = [state, advantage, action_prob, critic_target]
 		return data, end
 
 
 	def select_action(self, state, feasible_actions, greedy=False):
-		policy = self.net.get_policy(state)
-		policy[~feasible_actions] = 0 # mask out infeasible actions
+		policy = mask_out(self.net.get_policy(state), feasible_actions)
 		policy /= np.sum(policy) # renormalize
 		if greedy:
 			max_indices = np.argwhere(policy == np.max(policy))
@@ -149,32 +150,62 @@ class ActorCriticAgent(Agent):
 			return divmod(index, policy.shape[1])
 
 
-	def train(self, env, n_workers, display_every):
-			envs = [env for _ in range(n_workers)]
-			ended = [False for _ in range(n_workers)]
+	def train(self, env, n_games, n_workers, display_every):
+			envs = [copy(env) for _ in range(n_games)]
+			ended = False
 
 			pool = ThreadPool(n_workers)
-			tf_logs = []
+			tb_logs = []
 			cmpt = 0
-			while np.sum(ended) < n_workers:
+			while not ended:
 				# collect data from workers using same network stored only once in the base agent
 				results = pool.map(self.collect_data, envs[~ended])
-				data, ended_new = zip(*results)
-				ended[~ended] = ended_new
+				d, ended_new = zip(*results)
+				# prepare data to feed to tensorflow
+				data = dict({})
+				for key in ["advantage", "critic_target"]:
+					data[key] = np.array([dp[key] for dp in d]).reshape(-1,1) # reshape to get proper shape for tensorflow input
+				data["state"] = np.array([dp["state"] for dp in d]).reshape(-1,7,7,1)
+				action_mask = np.zeros((len(d), 7, 7, 4), dtype=bool)
+				for i, dp in enumerate(d):
+					j,k,l = dp["action"]
+					action_input[i,j,k,l] = True
+				data["action_mask"] = action_mask
+				# update network with the data produced
 				log = self.net.optimize(data)
-				tf_logs.append(log)
+				tb_logs.append(log)
 
+				# display info on optimization step
 				if cmpt % display_every == 0:
 					print('Losses at step ', cmpt)
 					print('loss : {:.3f} | actor loss : {:.3f} | critic loss : {:.3f} | reg loss : {:.3f}')
 					print('')
 
+				# update values of cmpt and ended
+				cmpt += 1
+				ended = np.sum(ended_new) >= 1
 
 			pool.close()
 			pool.join()
 
-			return tf_logs
+			return tb_logs
 
 
+	def play(self, env, greedy=False):
+		# play game with agent until the end
+		end = False
+		while not end:
+			action = self.select_action(env, env.state, env.feasible_actions, greedy=greedy)
+			reward, _, end = env.step(action)
+		return (reward, env.n_pegs)
+
+
+	def evaluate(self, env, n_games, n_workers, results_log_dir):
+		# play n_games and store the final reward and number of pegs left for each game
+		envs = [copy(env) for _ in range(n_games)]
+		pool = ThreadPool(n_workers)
+		results = pool.map(self.play, envs)
+		rewards, pegs_left = zip(*results)
+		return dict({"rewards" : rewards, "pegs_left" : pegs_left})
 
 		
