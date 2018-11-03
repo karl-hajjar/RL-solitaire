@@ -4,3 +4,4 @@ __pycache__
 tb/*
 results/*
 checkpoints/*
+actor-critic/*

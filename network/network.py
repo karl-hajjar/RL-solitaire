@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import os 
+from time import sleep
 
 from build import *
 from util import entropy, flush_or_create
@@ -15,7 +16,7 @@ ACTIVATION_DICT = dict({"identity" : tf.identity,
 class Net(object):
 	"""A class implementing a policy-value network for the Actor-Critic method"""
 
-	def __init__(self, config, tb_log_dir):
+	def __init__(self, config):
 		self.name = config['name']
 		self.use_bias = config['use_bias']
 		self.bias_init_const = config['bias_init_const']
@@ -24,6 +25,7 @@ class Net(object):
 		self.activation = ACTIVATION_DICT[config['activation']]
 		self.value_activation = ACTIVATION_DICT[config['value_activation']]
 		self.state_embedding_size = config['state_embedding_size']
+		self.state_channels = config["state_channels"]
 		self.lr = config['lr']
 		self.actor_coeff = config['actor_coeff']
 		self.critic_coeff = config['critic_coeff']
@@ -36,16 +38,16 @@ class Net(object):
 		config.gpu_options.allow_growth = True
 		self.sess = tf.Session(config=config)
 
-		# init summary writer
-		self.summary_writer = tf.summary.FileWriter(tb_log_dir, self.sess.graph)
-	
+		# track number of optim steps
+		self.steps = 0
+
 
 	def build(self):
 		# init regularizer
 		l2_regularizer = tf.contrib.layers.l2_regularizer(scale=self.reg_coeff)
 
 		with tf.name_scope('Inputs'):
-			self.state = tf.stop_gradient(tf.placeholder(dtype=tf.float32, shape=(None, 7, 7, 1), name='State'))
+			self.state = tf.stop_gradient(tf.placeholder(dtype=tf.float32, shape=(None, 7, 7, self.state_channels), name='State'))
 
 		with tf.name_scope('Embedding'):
 			state_emb = state_embedding(self.state, 
@@ -89,9 +91,9 @@ class Net(object):
 			action_proba = tf.boolean_mask(self.policy, self.action_mask, name="action_proba")
 			self.actor_loss = - tf.reduce_mean(tf.multiply(self.advantage, tf.log(action_proba, name="log_action_prob")))
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-			self.loss = self.actor_coeff * self.actor_loss +\
+			self.loss = 0.*self.actor_coeff * self.actor_loss +\
 						self.critic_coeff * self.critic_loss +\
-						self.reg_coeff * self.l2_loss
+						0.*self.reg_coeff * self.l2_loss
 
 		with tf.name_scope('Optimizer'):
 			update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -109,15 +111,9 @@ class Net(object):
 
 
 	def build_summaries(self, grads_and_vars):
-		##### define placeholders for summaries
+		# define placeholders for summaries
 		with tf.name_scope('summaries'):
 			with tf.name_scope('values'):
-				# self.value_summary = tf.placeholder(tf.float32,shape=None, name='value_summary') 
-				# self.policy_entropy_summary = tf.placeholder(tf.float32,shape=None, name='policy_entropy') 
-				# self.value_loss_summary = tf.placeholder(tf.float32,shape=None, name='value_loss_summary') 
-				# self.policy_loss_summary = tf.placeholder(tf.float32,shape=None, name='policy_loss_summary') 
-				# self.l2_loss_summary = tf.placeholder(tf.float32,shape=None, name='l2_loss_summary') 
-				# self.loss_summary = tf.placeholder(tf.float32,shape=None, name='loss_summary')
 
 				value = tf.summary.scalar('value', tf.reduce_mean(self.value))
 				policy_entropy = tf.summary.scalar('policy_entropy', tf.reduce_mean(self.entropy))
@@ -128,7 +124,10 @@ class Net(object):
 
 			for grad, var in grads_and_vars:
 				with tf.name_scope('gradients'):
-					tf.summary.histogram(var.name, grad)
+					try:
+						tf.summary.histogram(var.name, grad)
+					except:
+						print('var {} failed'.format(var.name))
 				with tf.name_scope('variables'):
 					tf.summary.histogram(var.name, var)
 
@@ -145,9 +144,12 @@ class Net(object):
 		return value		
 
 
-	def initialize(self, checkpoint_dir):
+	def initialize(self, checkpoint_dir, tb_log_dir):
+		# init variables
 		init = tf.global_variables_initializer()
 		self.sess.run(init)
+		# init summary writer
+		self.summary_writer = tf.summary.FileWriter(tb_log_dir, self.sess.graph)
 		# saver to save (and later restore) model checkpoints
 		self.saver = tf.train.Saver(max_to_keep=500)
 		self.save_checkpoint(checkpoint_dir, 0)
@@ -161,15 +163,9 @@ class Net(object):
 			fetches = [self.value, self.policy, self.critic_loss, self.actor_loss, self.l2_loss, self.loss, self.summaries, self.opt_step]
 			value, policy, critic_loss, actor_loss, l2_loss, loss, summaries, _ = self.sess.run(fetches,
 																					 feed_dict=feed_dict)
-			# entropies = np.fromiter(map(entropy, policy), dtype=np.float32)
 
-			# track values
-			# tf_logs = dict({"value" : np.mean(value), 
-			# 				"entropie" : np.mean(entropies),
-			# 				"value_loss" : critic_loss,
-			# 				"policy_loss" : actor_loss,
-			# 				"l2_loss" : l2_loss,
-			# 				"loss" : loss})
+			# increment number of steps
+			self.steps += 1
 			return summaries, critic_loss, actor_loss, l2_loss, loss
 
 

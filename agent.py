@@ -112,9 +112,10 @@ class ActorCriticAgent(Agent):
 
 	def __init__(self, net_config, checkpoint_dir, tensorboard_log_dir, name="Actor-Critic Agent", seed=None, render=False):
 		super().__init__()
-		self.net = Net(net_config, tensorboard_log_dir)
+		self.net = Net(net_config)
 		self.net.build()
-		self.net.initialize(checkpoint_dir)
+		self.net.initialize(checkpoint_dir, tensorboard_log_dir)
+		self.state_channels = net_config["state_channels"]
 
 		if seed is not None:
 			np.random.seed(seed)
@@ -127,7 +128,7 @@ class ActorCriticAgent(Agent):
 		state = env.state
 		action = self.select_action(state, env.feasible_actions)
 		reward, next_state, end = env.step(action)
-		state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,1)).reshape(-1) # evaluate state values in a batch to save time
+		state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,self.state_channels)).reshape(-1) # evaluate state values in a batch to save time
 		critic_target = reward + next_state_value 
 		advantage = critic_target - state_value 
 		x,y = GRID[action[0]]
@@ -140,7 +141,7 @@ class ActorCriticAgent(Agent):
 
 
 	def select_action(self, state, feasible_actions, greedy=False):
-		policy = mask_out(self.net.get_policy(state.reshape(1,7,7,1)), feasible_actions, GRID)
+		policy = mask_out(self.net.get_policy(state.reshape(1,7,7,self.state_channels)), feasible_actions, GRID)
 		policy = policy / np.sum(policy) # renormalize
 		if greedy:
 			max_indices = np.argwhere(policy == np.max(policy))
@@ -153,7 +154,7 @@ class ActorCriticAgent(Agent):
 			return POS_TO_INDEX[(x,y)], i
 
 
-	def train(self, env, n_games, n_workers, display_every, it):
+	def train(self, env, n_games, n_workers, display_every):
 			envs = np.array([deepcopy(env) for _ in range(n_games)])
 			ended = np.array([False for _ in range(n_games)])
 
@@ -168,7 +169,7 @@ class ActorCriticAgent(Agent):
 				data = dict({})
 				for key in ["advantage", "critic_target"]:
 					data[key] = np.array([dp[key] for dp in d]).reshape(-1,1) # reshape to get proper shape for tensorflow input
-				data["state"] = np.array([dp["state"] for dp in d]).reshape(-1,7,7,1)
+				data["state"] = np.array([dp["state"] for dp in d]).reshape(-1,7,7,self.state_channels)
 				action_mask = np.zeros((len(d), 7, 7, 4), dtype=bool)
 				for i, dp in enumerate(d):
 					j,k,l = dp["action"]
@@ -177,8 +178,9 @@ class ActorCriticAgent(Agent):
 				# update network with the data produced
 				summaries, critic_loss, actor_loss, l2_loss, loss = self.net.optimize(data)
 
-				# Write the obtained summaries to the file, so it can be displayed in the TensorBoard
-				self.net.summary_writer.add_summary(summaries, it+cmpt)
+
+				# write obtained summaries to file, so they can be displayed in TensorBoard
+				self.net.summary_writer.add_summary(summaries, self.net.steps)
 				self.net.summary_writer.flush()
 
 				# display info on optimization step
@@ -188,12 +190,10 @@ class ActorCriticAgent(Agent):
 																											  	   actor_loss,
 																											  	   critic_loss,
 																											  	   l2_loss))
-					#print('')
 
 				# update values of cmpt and ended
 				cmpt += 1
 				ended[~ended] = ended_new
-				#ended = np.sum(ended_new) >= 1
 
 			pool.close()
 			pool.join()
@@ -214,6 +214,9 @@ class ActorCriticAgent(Agent):
 		pool = ThreadPool(n_workers)
 		results = pool.map(self.play, envs)
 		rewards, pegs_left = zip(*results)
+		pool.close()
+		pool.join()
 		return dict({"rewards" : rewards, "pegs_left" : pegs_left})
+
 
 		

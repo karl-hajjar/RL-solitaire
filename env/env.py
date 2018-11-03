@@ -14,10 +14,6 @@ POS_TO_INDEX = dict({})
 for ind, (x,y) in enumerate(GRID):
 	POS_TO_INDEX[(x+3,y+3)] = ind
 
-print('GRID : \n', GRID)
-print('POS_TO_INDEX : \n', POS_TO_INDEX)
-print('')
-
 N_PEGS = len(GRID) - 1 # center point in the grid does not contain any peg
 ACTION_NAMES = ["up", "down", "right", "left"]
 MOVES = [(0,1), (0,-1), (1,0), (-1,0)]
@@ -141,9 +137,11 @@ class Env(object):
 		Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are -1 if the position
 		is outsibe the board, 1 if there is a peg at this position, and 0 otherwise. 
 		'''
-		state = -np.ones((7,7), dtype=np.int8)
+		state = -np.ones((7,7,3), dtype=np.int8)
 		for pos, value in self.pegs.items():
-			state[pos[0]+3, pos[1]+3] = value
+			state[pos[0]+3, pos[1]+3,0] = value
+			state[:,:,1] = self.n_pegs
+			state[:,:,2] = N_PEGS - self.n_pegs
 		return state
 
 

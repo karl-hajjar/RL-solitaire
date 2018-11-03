@@ -3,7 +3,7 @@ from util import softmax
 
 def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_regularizer, use_bias, bias_init_const):
 	# conv
-	out = tf.layers.conv2d(inputs=inputs, 
+	out1 = tf.layers.conv2d(inputs=inputs, 
                        filters=n_filters//2,
                        kernel_size=kernel_size,
                        strides=strides, 
@@ -16,6 +16,36 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
                        name="state_conv1")
 
 	# conv
+	out = tf.layers.conv2d(inputs=out1, 
+                       filters=n_filters//2,
+                       kernel_size=kernel_size,
+                       strides=strides, 
+                       padding="same", 
+                       activation=activation,
+                       kernel_regularizer=kernel_regularizer,
+                       use_bias=use_bias, 
+                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+                       bias_initializer=tf.constant_initializer(bias_init_const), 
+                       name="state_conv2")	
+
+	# conv
+	out = tf.layers.conv2d(inputs=out, 
+                       filters=n_filters//2,
+                       kernel_size=kernel_size,
+                       strides=strides, 
+                       padding="same", 
+                       activation=tf.identity,
+                       kernel_regularizer=kernel_regularizer,
+                       use_bias=use_bias, 
+                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+                       bias_initializer=tf.constant_initializer(bias_init_const), 
+                       name="state_conv3")
+
+	# skip connection
+	out = out1 + out
+	out = activation(out, name="embedding_skip_connection")
+
+	# conv
 	out = tf.layers.conv2d(inputs=out, 
                        filters=n_filters,
                        kernel_size=kernel_size,
@@ -26,7 +56,7 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
                        use_bias=use_bias, 
                        kernel_initializer=tf.contrib.layers.xavier_initializer(), 
                        bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="state_conv2")	
+                       name="state_conv4")
 
 	return out
 
@@ -49,12 +79,20 @@ def value_head(inputs, n_filters, activation, value_activation, kernel_regulariz
 	flat = tf.contrib.layers.flatten(out)
 
 	out = tf.layers.dense(inputs=flat,
-	                      units=n_filters, 
+	                      units=output_size*2, 
 	                      activation=activation,
 	                      kernel_regularizer=kernel_regularizer,
 	                      use_bias=use_bias,
 	                      kernel_initializer=tf.contrib.layers.xavier_initializer(), 
 	                      bias_initializer=tf.constant_initializer(bias_init_const), name="value_dense1")
+
+	out = tf.layers.dense(inputs=out,
+	                      units=output_size//2, 
+	                      activation=activation,
+	                      kernel_regularizer=kernel_regularizer,
+	                      use_bias=use_bias,
+	                      kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+	                      bias_initializer=tf.constant_initializer(bias_init_const), name="value_dense2")
 
 	value = tf.layers.dense(inputs=out,
 	                      units=1, 
@@ -70,7 +108,7 @@ def value_head(inputs, n_filters, activation, value_activation, kernel_regulariz
 def policy_head(inputs, n_filters, kernel_size, strides, activation, kernel_regularizer, use_bias, bias_init_const):
 	# conv
 	out = tf.layers.conv2d(inputs=inputs, 
-                       filters=n_filters//2,
+                       filters=n_filters,
                        kernel_size=kernel_size,
                        strides=strides, 
                        padding="same", 
@@ -80,6 +118,24 @@ def policy_head(inputs, n_filters, kernel_size, strides, activation, kernel_regu
                        kernel_initializer=tf.contrib.layers.xavier_initializer(), 
                        bias_initializer=tf.constant_initializer(bias_init_const), 
                        name="policy_conv1")
+
+	# conv
+	out = tf.layers.conv2d(inputs=out, 
+                       filters=n_filters,
+                       kernel_size=kernel_size,
+                       strides=strides, 
+                       padding="same", 
+                       activation=tf.identity,
+                       kernel_regularizer=kernel_regularizer,
+                       use_bias=use_bias, 
+                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+                       bias_initializer=tf.constant_initializer(bias_init_const), 
+                       name="policy_conv2")
+
+
+	# skip connection
+	out = inputs + out
+	out = activation(out, name="policy_skip_connection")
 
 	logits = tf.layers.conv2d(inputs=out, 
                        filters=4,
@@ -92,6 +148,7 @@ def policy_head(inputs, n_filters, kernel_size, strides, activation, kernel_regu
                        kernel_initializer=tf.contrib.layers.xavier_initializer(), 
                        bias_initializer=tf.constant_initializer(bias_init_const), 
                        name="policy_output")
+
 
 	policy = tf.map_fn(softmax, logits)
 

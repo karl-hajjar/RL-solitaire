@@ -42,20 +42,24 @@ def main():
 	tensorboard_log_dir = os.path.join(model_name, files_config["tensorboard_log_dir"])
 	results_log_path = os.path.join(model_name, files_config["results_log_path"])
 
+	# initialize dir for tensorboard 
+	flush_or_create(tensorboard_log_dir)
+
+	print('\n\n')
 	env = Env()
 	agent = ActorCriticAgent(network_config, checkpoints_dir, tensorboard_log_dir)
 
 	# if train from scratch
 	if training_config["init_checkpoint"] == 0:
-	    # initialize dir for tensorboard 
-	    flush_or_create(tensorboard_log_dir)
+	    # initialize dir for checkpoitns
+	    flush_or_create(checkpoints_dir)
 	    # initialize iteration number
 	    start = 0
 
 	# else restart training from last checkpoint
 	else:
 	    latest_checkpoint = get_latest_checkpoint(os.path.join(checkpoints_dir, "checkpoint"))
-	    net.restore(os.path.join(checkpoints_dir, "checkpoint_{}".format(latest_checkpoint)))
+	    agent.net.restore(os.path.join(checkpoints_dir, "checkpoint_{}".format(latest_checkpoint)))
 	    print('\nnetwork restored from checkpoint # ', latest_checkpoint)
 	    print('')
 	    start = latest_checkpoint
@@ -72,18 +76,23 @@ def main():
 
 	logger = logging.getLogger(__name__)
 
+
+	print('\n\n')
+	print('Starting training\n\n')
 	for it in tqdm(np.arange(start, training_config["n_iter"]), desc="parallel gameplay iterations"):
 		# play games to generate data and train the network
 		env.reset()
+		print(' IN MAIN LOOP, it = ', it)
 		try:
-			agent.train(env, n_games_train, n_workers_train, display_every, it)
+			agent.train(env, n_games_train, n_workers_train, display_every)
 		except Exception as error:
-			net.summary_writer.close()
+			print('\n\n#### OUPS ####\n\n')
+			agent.net.summary_writer.close()
 			agent.net.sess.close()
 			log_file.close()
 			logger.error(error)
 			raise 
-		agent.net.save_checkpoint(checkpoints_dir, it=it)
+		agent.net.save_checkpoint(checkpoints_dir, it=it+1)
 
 		# play games with latest checkpoint and track average final reward
 		results = agent.evaluate(env, n_games_eval, n_workers_eval)
@@ -91,7 +100,8 @@ def main():
 		pickle.dump(results, log_file)
 		print('')
 
-	net.summary_writer.close()
+	agent.net.summary_writer.close()
+	print('summary writer closed')
 	agent.net.sess.close()
 	log_file.close()
 	print('End of training')
