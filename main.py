@@ -42,6 +42,9 @@ def main():
 	tensorboard_log_dir = os.path.join(model_name, files_config["tensorboard_log_dir"])
 	results_log_path = os.path.join(model_name, files_config["results_log_path"])
 
+	# fix random seed
+	np.random.seed(seed=42)
+
 	print('\n\n')
 	env = Env()
 
@@ -50,11 +53,11 @@ def main():
 		# initialize dir for tensorboard 
 		flush_or_create(tensorboard_log_dir)
 	    # initialize dir for checkpoitns
-	    flush_or_create(checkpoints_dir)
+		flush_or_create(checkpoints_dir)
 	    # init agent and network from scratch
 		agent = ActorCriticAgent(network_config, checkpoints_dir, tensorboard_log_dir)
 	    # initialize iteration number
-	    start = 0
+		start = 0
 
 	# else restart training from last checkpoint
 	else:

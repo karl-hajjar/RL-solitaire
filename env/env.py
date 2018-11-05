@@ -133,8 +133,8 @@ class Env(object):
 					print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
 				return 0, self.state, True
 			else:
-				# reward is percentage of the game achieved
-				return 1 - (self.n_pegs / N_PEGS), self.state, False
+				# reward is -percentage of the game achieved
+				return -self.n_pegs / N_PEGS, self.state, False
 
 
 	@property

@@ -97,7 +97,7 @@ class Net(object):
 		with tf.name_scope('Loss'):
 			self.critic_loss = tf.losses.mean_squared_error(self.value_target, self.value)
 			action_proba = tf.boolean_mask(self.policy, self.action_mask, name="action_proba")
-			self.actor_loss = - tf.reduce_mean(tf.multiply(self.advantage, tf.log(action_proba, name="log_action_prob")))
+			self.actor_loss = - tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), tf.log(action_proba, name="log_action_prob")))
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 			self.loss = self.actor_coeff * self.actor_loss +\
 						self.critic_coeff * self.critic_loss +\

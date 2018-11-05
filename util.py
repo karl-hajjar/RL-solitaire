@@ -70,8 +70,8 @@ def rotate_state_action(state, action):
 	ROTATED_ACTIONS = np.array([[0,1,2,3], [3,2,0,1], [1,0,3,2], [2,3,1,0]], dtype=np.int)
 	rotated_state = np.zeros_like(state)
 	rotated_state[:,:,1:] = state[:,:,1:]
-	#angle_index = np.random.randint(0,4) 
-	angle_index = 1
+	angle_index = np.random.randint(0,4) 
+	#angle_index = 1
 	angle = angle_index * Pi/2
 	for i in range(7):
 		for j in range(7):

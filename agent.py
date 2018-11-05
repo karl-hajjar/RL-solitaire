@@ -121,11 +121,11 @@ class ActorCriticAgent(Agent):
 			latest_checkpoint = get_latest_checkpoint(os.path.join(checkpoint_dir, "checkpoint"))
 			self.net.restore(os.path.join(checkpoint_dir, "checkpoint_{}".format(latest_checkpoint)))
 			# saver to save (and later restore) model checkpoints
-			self.saver = tf.train.Saver(max_to_keep=500-latest_checkpoint)
+			self.net.saver = tf.train.Saver(max_to_keep=500-latest_checkpoint)
 		else:
+			self.net.saver = tf.train.Saver(max_to_keep=500)
 			self.net.initialize(checkpoint_dir)
-			self.saver = tf.train.Saver(max_to_keep=500)
-		self.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, self.net.sess.graph)
+		self.net.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, self.net.sess.graph)
 		self.state_channels = net_config["state_channels"]
 		self.gamma = net_config["gamma"]
 
