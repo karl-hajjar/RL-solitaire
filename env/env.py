@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -10,9 +11,14 @@ GRID = [(i,j) for j in [-3,-2] for i in [-1,0,1]] + \
 	   [(i,j) for j in [-1,0,1] for i in np.arange(-3,4)] + \
 	   [(i,j) for j in [2,3] for i in [-1,0,1]]
 
+# positions (x,y) in the grid are related to indexes (i,j) of an array 7x7 by
+# i = 3 - y
+# j = x + 3
+
+
 POS_TO_INDEX = dict({})
 for ind, (x,y) in enumerate(GRID):
-	POS_TO_INDEX[(x+3,y+3)] = ind
+	POS_TO_INDEX[(3-y,x+3)] = ind
 
 N_PEGS = len(GRID) - 1 # center point in the grid does not contain any peg
 ACTION_NAMES = ["up", "down", "right", "left"]
@@ -47,7 +53,6 @@ class Env(object):
 		self.n_pegs = N_PEGS
 		assert self.n_pegs == 32
 		self._init_pegs()
-		#self.feasible_actions = self.get_feasible_actions()
 		if init_fig:
 			self.init_fig(interactive_plot)
 			pass
@@ -126,9 +131,10 @@ class Env(object):
 			if np.sum(self.feasible_actions) == 0: # no more actions available
 				if self.verbose:
 					print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
-				return -self.n_pegs, self.state, True
+				return 0, self.state, True
 			else:
-				return 0, self.state, False
+				# reward is percentage of the game achieved
+				return 1 - (self.n_pegs / N_PEGS), self.state, False
 
 
 	@property
@@ -139,9 +145,9 @@ class Env(object):
 		'''
 		state = -np.ones((7,7,3), dtype=np.int8)
 		for pos, value in self.pegs.items():
-			state[pos[0]+3, pos[1]+3,0] = value
-			state[:,:,1] = self.n_pegs
-			state[:,:,2] = N_PEGS - self.n_pegs
+			state[3-pos[1], pos[0]+3,0] = value
+		state[:,:,1] = self.n_pegs
+		state[:,:,2] = N_PEGS - self.n_pegs
 		return state
 
 
@@ -159,8 +165,6 @@ class Env(object):
 			else:
 				x,y = pos
 				out_of_borders = OUT_OF_BORDER_ACTIONS[i]
-				# print('out_of_borders = ', out_of_borders)
-				# print('actions shape = ', actions.shape)
 				actions[i, out_of_borders==True] = False
 				for k in range(4):
 					if out_of_borders[k] == False:

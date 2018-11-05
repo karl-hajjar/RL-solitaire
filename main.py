@@ -42,24 +42,23 @@ def main():
 	tensorboard_log_dir = os.path.join(model_name, files_config["tensorboard_log_dir"])
 	results_log_path = os.path.join(model_name, files_config["results_log_path"])
 
-	# initialize dir for tensorboard 
-	flush_or_create(tensorboard_log_dir)
-
 	print('\n\n')
 	env = Env()
-	agent = ActorCriticAgent(network_config, checkpoints_dir, tensorboard_log_dir)
 
 	# if train from scratch
 	if training_config["init_checkpoint"] == 0:
+		# initialize dir for tensorboard 
+		flush_or_create(tensorboard_log_dir)
 	    # initialize dir for checkpoitns
 	    flush_or_create(checkpoints_dir)
+	    # init agent and network from scratch
+		agent = ActorCriticAgent(network_config, checkpoints_dir, tensorboard_log_dir)
 	    # initialize iteration number
 	    start = 0
 
 	# else restart training from last checkpoint
 	else:
-	    latest_checkpoint = get_latest_checkpoint(os.path.join(checkpoints_dir, "checkpoint"))
-	    agent.net.restore(os.path.join(checkpoints_dir, "checkpoint_{}".format(latest_checkpoint)))
+	    agent = ActorCriticAgent(network_config, checkpoints_dir, tensorboard_log_dir, restore=True)
 	    print('\nnetwork restored from checkpoint # ', latest_checkpoint)
 	    print('')
 	    start = latest_checkpoint
@@ -82,7 +81,6 @@ def main():
 	for it in tqdm(np.arange(start, training_config["n_iter"]), desc="parallel gameplay iterations"):
 		# play games to generate data and train the network
 		env.reset()
-		print(' IN MAIN LOOP, it = ', it)
 		try:
 			agent.train(env, n_games_train, n_workers_train, display_every)
 		except Exception as error:

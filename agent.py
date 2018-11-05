@@ -6,10 +6,11 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from multiprocessing.dummy import Pool as ThreadPool
 from copy import deepcopy
+import os
 
 from env.env import GRID, ACTION_NAMES, POS_TO_INDEX
 from network.network import Net
-from util import mask_out
+from util import mask_out, get_latest_checkpoint, rotate_state_action
 
 class Agent(object):
 	"""Agent is the base class for implementing agents to play the game of solitaire"""
@@ -87,6 +88,8 @@ class RandomAgent(Agent):
 			sleep(2)
 			plt.close()
 
+		return env.n_pegs
+
 
 	def select_action(self, feasible_actions):
 		'''
@@ -110,12 +113,21 @@ class RandomAgent(Agent):
 class ActorCriticAgent(Agent):
 	"""ActorCriticAgent implements a class of agents using the actor-critic method"""
 
-	def __init__(self, net_config, checkpoint_dir, tensorboard_log_dir, name="Actor-Critic Agent", seed=None, render=False):
+	def __init__(self, net_config, checkpoint_dir, tensorboard_log_dir, name="Actor-Critic Agent", seed=None, render=False, restore=False):
 		super().__init__()
 		self.net = Net(net_config)
 		self.net.build()
-		self.net.initialize(checkpoint_dir, tensorboard_log_dir)
+		if restore:
+			latest_checkpoint = get_latest_checkpoint(os.path.join(checkpoint_dir, "checkpoint"))
+			self.net.restore(os.path.join(checkpoint_dir, "checkpoint_{}".format(latest_checkpoint)))
+			# saver to save (and later restore) model checkpoints
+			self.saver = tf.train.Saver(max_to_keep=500-latest_checkpoint)
+		else:
+			self.net.initialize(checkpoint_dir)
+			self.saver = tf.train.Saver(max_to_keep=500)
+		self.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, self.net.sess.graph)
 		self.state_channels = net_config["state_channels"]
+		self.gamma = net_config["gamma"]
 
 		if seed is not None:
 			np.random.seed(seed)
@@ -129,10 +141,13 @@ class ActorCriticAgent(Agent):
 		action = self.select_action(state, env.feasible_actions)
 		reward, next_state, end = env.step(action)
 		state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,self.state_channels)).reshape(-1) # evaluate state values in a batch to save time
-		critic_target = reward + next_state_value 
+		if end:
+			next_state_value = 0
+		critic_target = reward + self.gamma * next_state_value 
 		advantage = critic_target - state_value 
 		x,y = GRID[action[0]]
-		action = np.array([x, y, action[1]])
+		action = np.array([3-y, x+3, action[1]])
+		state, action = rotate_state_action(state, action)
 		data = dict({"state" : state, 
 					 "advantage" : advantage, 
 					 "action" : action,

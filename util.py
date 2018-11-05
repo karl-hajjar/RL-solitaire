@@ -4,6 +4,7 @@ import numpy as np
 import os
 import shutil
 import glob
+import math
 
 def read_config(path):
 	with open(path, 'r') as stream:
@@ -37,7 +38,7 @@ def get_latest_checkpoint(path):
 def mask_out(policy, feasible_actions, grid):
 	mask = np.zeros_like(policy)
 	for i, (x,y) in enumerate(grid):
-		mask[x+3, y+3, feasible_actions[i]] = policy[x+3, y+3, feasible_actions[i]]
+		mask[3-y, x+3, feasible_actions[i]] = policy[3-y, x+3, feasible_actions[i]]
 	return mask
 
 
@@ -55,5 +56,29 @@ def entropy(target, axis=None, name=None):
 		return -tf.reduce_sum(target * tf.log(target), axis=axis)
 
 
-# def entropy(p):
-#     return -np.sum(p * np.log(p))
+def rot_pos(pos,angle):
+    x,y = pos
+    cos = np.cos(angle)
+    sin = np.sin(angle)
+    xr = x*cos - y*sin
+    yr = y*cos + x*sin
+    return (int(round(xr)), int(round(yr)))
+
+
+def rotate_state_action(state, action):
+	Pi = math.pi
+	ROTATED_ACTIONS = np.array([[0,1,2,3], [3,2,0,1], [1,0,3,2], [2,3,1,0]], dtype=np.int)
+	rotated_state = np.zeros_like(state)
+	rotated_state[:,:,1:] = state[:,:,1:]
+	#angle_index = np.random.randint(0,4) 
+	angle_index = 1
+	angle = angle_index * Pi/2
+	for i in range(7):
+		for j in range(7):
+			x,y = rot_pos((j-3,3-i), angle)
+			rotated_state[3-y,x+3,0] = state[i,j,0]
+	rotated_move_id = ROTATED_ACTIONS[angle_index, action[2]]
+	xr, yr = rot_pos((action[1]-3, 3-action[0]), angle)
+	return rotated_state, [3-yr, xr+3, rotated_move_id]
+
+

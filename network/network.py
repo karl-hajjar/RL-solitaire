@@ -22,8 +22,16 @@ class Net(object):
 		self.bias_init_const = config['bias_init_const']
 		self.grad_clip_norm = config['grad_clip_norm']
 		self.n_filters = config['n_filters']
-		self.activation = ACTIVATION_DICT[config['activation']]
-		self.value_activation = ACTIVATION_DICT[config['value_activation']]
+		try:
+			self.activation = ACTIVATION_DICT[config['activation']]
+		except ValueError:
+			print('activation function must be one of {"identity", "relu", "elu", "sigmoid", "tanh"}, but was "{}".'.format(config['activation']))
+			raise
+		try:
+			self.value_activation = ACTIVATION_DICT[config['value_activation']]
+		except ValueError:
+			print('value activation function must be one of {"identity", "relu", "elu", "sigmoid", "tanh"}, but was "{}".'.format(config['value_activation']))
+			raise
 		self.state_embedding_size = config['state_embedding_size']
 		self.state_channels = config["state_channels"]
 		self.lr = config['lr']
@@ -91,9 +99,9 @@ class Net(object):
 			action_proba = tf.boolean_mask(self.policy, self.action_mask, name="action_proba")
 			self.actor_loss = - tf.reduce_mean(tf.multiply(self.advantage, tf.log(action_proba, name="log_action_prob")))
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-			self.loss = 0.*self.actor_coeff * self.actor_loss +\
+			self.loss = self.actor_coeff * self.actor_loss +\
 						self.critic_coeff * self.critic_loss +\
-						0.*self.reg_coeff * self.l2_loss
+						self.reg_coeff * self.l2_loss
 
 		with tf.name_scope('Optimizer'):
 			update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -144,15 +152,17 @@ class Net(object):
 		return value		
 
 
-	def initialize(self, checkpoint_dir, tb_log_dir):
+	def initialize(self, checkpoint_dir):
 		# init variables
 		init = tf.global_variables_initializer()
 		self.sess.run(init)
 		# init summary writer
-		self.summary_writer = tf.summary.FileWriter(tb_log_dir, self.sess.graph)
-		# saver to save (and later restore) model checkpoints
-		self.saver = tf.train.Saver(max_to_keep=500)
 		self.save_checkpoint(checkpoint_dir, 0)
+
+
+	def restore(self, checkpoint_path):
+		saver = tf.train.Saver()
+		saver.restore(self.sess, checkpoint_path)
 
 
 	def optimize(self, data):
