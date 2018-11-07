@@ -15,14 +15,49 @@ from util import mask_out, get_latest_checkpoint, rotate_state_action
 class Agent(object):
 	"""Agent is the base class for implementing agents to play the game of solitaire"""
 
-	def __init__(self):
-		pass
+	def __init__(self, name="Random Agent", gamma=1.0, render=False):
+		self.name = name
+		self.gamma = gamma
+		self.render = render
+
 
 	def play(self, env):
+		'''
+		Plays a game given the environment `env` until the end, selecting moves at random.
+
+		Parameters
+		----------
+		env : Env
+			The environment with which the agent will interact.
+		'''
+		G = 0.0
+		discount = 1.0
 		end = False
+
+		if self.render: # render the state of the board at the begining of the game 
+			env.init_fig()
+			env.render()
+			sleep(1.5)
+
 		while not end:
-			action = self.select_action(state, feasible_actions)
-			reward, state, end = env.step(action)
+			action = self.select_action(env.feasible_actions)
+			if self.render:
+				env.render(action=action, show_action=True) # render a first time displaying the action selected
+				sleep(0.8)
+			reward, _, end = env.step(action)
+			G += discount * reward
+			discount = discount * self.gamma
+			if self.render: 
+				env.render() # render a second time the state of the board after the action is played
+				sleep(0.6)
+
+		if self.render:
+			env.render()
+			sleep(2)
+			plt.close()
+
+		return (G, env.n_pegs)
+
 
 	def select_action(self, state, feasible_actions):
 		pass 
@@ -32,7 +67,7 @@ class Agent(object):
 class RandomAgent(Agent):
 	"""RandomAgent is class of agents which select actions randomly"""
 
-	def __init__(self, name="Random Agent", seed=None, render=False):
+	def __init__(self, name="Random Agent", gamma=1.0, render=False):
 		'''
 		Instanciates an object of the class RandomAgent by initializing the seed, defining the name of the agent, and setting
 		the render parameter.
@@ -53,42 +88,7 @@ class RandomAgent(Agent):
 		render : bool
 			Whether or not to display a visual representation of the game as the agent plays.
 		'''
-		super().__init__()
-		if seed is not None:
-			np.random.seed(seed)
-		self.name = name
-		self.render = render
-
-
-	def play(self, env):
-		'''
-		Plays a game given the environment `env` until the end, selecting moves at random.
-
-		Parameters
-		----------
-		env : Env
-			The environment with which the agent will interact.
-		'''
-		end = False
-		if self.render: # render the state of the board at the begining of the game 
-			env.init_fig()
-			env.render()
-			sleep(1.5)
-		while not end:
-			action = self.select_action(env.feasible_actions)
-			if self.render:
-				env.render(action=action, show_action=True) # render a first time displaying the action selected
-				sleep(0.8)
-			reward, state, end = env.step(action)
-			if self.render: 
-				env.render() # render a second time the state of the board after the action is played
-				sleep(0.6)
-		if self.render:
-			env.render()
-			sleep(2)
-			plt.close()
-
-		return env.n_pegs
+		super().__init__(name, gamma, render)
 
 
 	def select_action(self, feasible_actions):
@@ -113,8 +113,8 @@ class RandomAgent(Agent):
 class ActorCriticAgent(Agent):
 	"""ActorCriticAgent implements a class of agents using the actor-critic method"""
 
-	def __init__(self, net_config, checkpoint_dir, tensorboard_log_dir, name="Actor-Critic Agent", seed=None, render=False, restore=False):
-		super().__init__()
+	def __init__(self, agent_config, net_config, checkpoint_dir, tensorboard_log_dir, render=False, restore=False):
+		super().__init__(agent_config['name'], agent_config['gamma'], render)
 		self.net = Net(net_config)
 		self.net.build()
 		if restore:
@@ -127,12 +127,6 @@ class ActorCriticAgent(Agent):
 			self.net.initialize(checkpoint_dir)
 		self.net.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, self.net.sess.graph)
 		self.state_channels = net_config["state_channels"]
-		self.gamma = net_config["gamma"]
-
-		if seed is not None:
-			np.random.seed(seed)
-		self.name = name
-		self.render = render
 
 
 	def collect_data(self, env):
@@ -147,7 +141,7 @@ class ActorCriticAgent(Agent):
 		advantage = critic_target - state_value 
 		x,y = GRID[action[0]]
 		action = np.array([3-y, x+3, action[1]])
-		state, action = rotate_state_action(state, action)
+		#state, action = rotate_state_action(state, action)
 		data = dict({"state" : state, 
 					 "advantage" : advantage, 
 					 "action" : action,
@@ -157,7 +151,12 @@ class ActorCriticAgent(Agent):
 
 	def select_action(self, state, feasible_actions, greedy=False):
 		policy = mask_out(self.net.get_policy(state.reshape(1,7,7,self.state_channels)), feasible_actions, GRID)
+		# add small espsilon to make sure one of the feasible actions is picked
+		for i in range(4):
+			assert(policy[0,0,i] == 0)
+		policy[policy > 0] += 1e-6
 		policy = policy / np.sum(policy) # renormalize
+		assert(np.sum(policy) > 1 - 1e-4)
 		if greedy:
 			max_indices = np.argwhere(policy == np.max(policy))
 			x,y,i = max_indices[np.random.randint(0,len(max_indices))]

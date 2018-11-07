@@ -133,8 +133,8 @@ class Env(object):
 					print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
 				return 0, self.state, True
 			else:
-				# reward is -percentage of the game achieved
-				return -self.n_pegs / N_PEGS, self.state, False
+				# reward is an increasing function of the percentage of the game achieved
+				return ((N_PEGS - self.n_pegs) / (N_PEGS-1)) **2, self.state, False
 
 
 	@property
@@ -143,7 +143,7 @@ class Env(object):
 		Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are -1 if the position
 		is outsibe the board, 1 if there is a peg at this position, and 0 otherwise. 
 		'''
-		state = -np.ones((7,7,3), dtype=np.int8)
+		state = np.zeros((7,7,3), dtype=np.int8)
 		for pos, value in self.pegs.items():
 			state[3-pos[1], pos[0]+3,0] = value
 		state[:,:,1] = self.n_pegs

@@ -4,7 +4,7 @@ from util import softmax
 def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_regularizer, use_bias, bias_init_const):
 	# conv
 	out1 = tf.layers.conv2d(inputs=inputs, 
-                       filters=n_filters//2,
+                       filters=n_filters,
                        kernel_size=kernel_size,
                        strides=strides, 
                        padding="same", 
@@ -17,7 +17,7 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
 
 	# conv
 	out = tf.layers.conv2d(inputs=out1, 
-                       filters=n_filters//2,
+                       filters=n_filters,
                        kernel_size=kernel_size,
                        strides=strides, 
                        padding="same", 
@@ -30,7 +30,7 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
 
 	# conv
 	out = tf.layers.conv2d(inputs=out, 
-                       filters=n_filters//2,
+                       filters=n_filters,
                        kernel_size=kernel_size,
                        strides=strides, 
                        padding="same", 
@@ -43,7 +43,20 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
 
 	# skip connection
 	out = out1 + out
-	out = activation(out, name="embedding_skip_connection")
+	out1 = activation(out, name="embedding_skip_connection")
+
+	# conv
+	out = tf.layers.conv2d(inputs=out1, 
+                       filters=n_filters,
+                       kernel_size=kernel_size,
+                       strides=strides, 
+                       padding="same", 
+                       activation=activation,
+                       kernel_regularizer=kernel_regularizer,
+                       use_bias=use_bias, 
+                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+                       bias_initializer=tf.constant_initializer(bias_init_const), 
+                       name="state_conv4")
 
 	# conv
 	out = tf.layers.conv2d(inputs=out, 
@@ -56,7 +69,11 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
                        use_bias=use_bias, 
                        kernel_initializer=tf.contrib.layers.xavier_initializer(), 
                        bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="state_conv4")
+                       name="state_conv5")
+
+	# skip connection
+	out = out1 + out
+	out = activation(out, name="embedding_skip_connection")
 
 	return out
 
@@ -117,25 +134,7 @@ def policy_head(inputs, n_filters, kernel_size, strides, activation, kernel_regu
                        use_bias=use_bias, 
                        kernel_initializer=tf.contrib.layers.xavier_initializer(), 
                        bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="policy_conv1")
-
-	# conv
-	out = tf.layers.conv2d(inputs=out, 
-                       filters=n_filters,
-                       kernel_size=kernel_size,
-                       strides=strides, 
-                       padding="same", 
-                       activation=tf.identity,
-                       kernel_regularizer=kernel_regularizer,
-                       use_bias=use_bias, 
-                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
-                       bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="policy_conv2")
-
-
-	# skip connection
-	out = inputs + out
-	out = activation(out, name="policy_skip_connection")
+                       name="policy_conv")
 
 	logits = tf.layers.conv2d(inputs=out, 
                        filters=4,
@@ -148,7 +147,6 @@ def policy_head(inputs, n_filters, kernel_size, strides, activation, kernel_regu
                        kernel_initializer=tf.contrib.layers.xavier_initializer(), 
                        bias_initializer=tf.constant_initializer(bias_init_const), 
                        name="policy_output")
-
 
 	policy = tf.map_fn(softmax, logits)
 

@@ -60,7 +60,7 @@ class Net(object):
 		with tf.name_scope('Embedding'):
 			state_emb = state_embedding(self.state, 
 				n_filters=self.n_filters, 
-				kernel_size=(2,2), 
+				kernel_size=(3,3), 
 				strides=(1,1),
 				activation=self.activation, 
 				kernel_regularizer=l2_regularizer,
@@ -79,7 +79,7 @@ class Net(object):
 
 			self.policy = policy_head(state_emb, 
 						n_filters=self.n_filters, 
-						kernel_size=(2,2), 
+						kernel_size=(3,3), 
 						strides=(1,1),
 						activation=self.activation, 
 						kernel_regularizer=l2_regularizer,
@@ -100,8 +100,8 @@ class Net(object):
 			self.actor_loss = - tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), tf.log(action_proba, name="log_action_prob")))
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 			self.loss = self.actor_coeff * self.actor_loss +\
-						self.critic_coeff * self.critic_loss +\
-						self.reg_coeff * self.l2_loss
+						0.*self.critic_coeff * self.critic_loss +\
+						0.*self.reg_coeff * self.l2_loss
 
 		with tf.name_scope('Optimizer'):
 			update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -115,6 +115,8 @@ class Net(object):
 				    grads_and_vars = list(zip(gradients, variables))
 
 				self.opt_step = optimizer.minimize(self.loss, name="optim_step")
+
+				# use apply_gradients instead ?
 		self.build_summaries(grads_and_vars)
 
 
