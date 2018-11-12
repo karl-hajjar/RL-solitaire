@@ -18,15 +18,15 @@ Agent:
     state_embedding_size: 128
     state_channels: 3
     lr: 2.0e-5
-    actor_coeff: 2.5
+    actor_coeff: 1.5
     critic_coeff: 1.0
     reg_coeff: 1.0e-2
     value_activation: 'identity'
 
 Training:
   init_checkpoint: 0      # 0 for training from scratch, any integer > 0 for restoring the model from the last checkpoint 
-  n_iter: 500
-  n_games: 32            
+  n_iter: 200
+  n_games: 8            
   n_workers: 8
   display_every: 5
 

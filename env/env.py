@@ -14,13 +14,15 @@ GRID = [(i,j) for j in [-3,-2] for i in [-1,0,1]] + \
 # positions (x,y) in the grid are related to indexes (i,j) of an array 7x7 by
 # i = 3 - y
 # j = x + 3
-
-
 POS_TO_INDEX = dict({})
 for ind, (x,y) in enumerate(GRID):
 	POS_TO_INDEX[(3-y,x+3)] = ind
 
+
+# actions will be  ordered as follows : we take positions as they are ordered in GRID and list in order "up", "down", "right", "left" 
+# the 4 possible actions 
 N_PEGS = len(GRID) - 1 # center point in the grid does not contain any peg
+N_ACTIONS = len(GRID) * 4
 ACTION_NAMES = ["up", "down", "right", "left"]
 MOVES = [(0,1), (0,-1), (1,0), (-1,0)]
 OUT_OF_BORDER_ACTIONS = compute_out_of_border_actions(GRID)
@@ -134,16 +136,17 @@ class Env(object):
 				return 0, self.state, True
 			else:
 				# reward is an increasing function of the percentage of the game achieved
-				return ((N_PEGS - self.n_pegs) / (N_PEGS-1)) **2, self.state, False
+				return ((N_PEGS - self.n_pegs) / (N_PEGS-1)) ** 2, self.state, False
 
 
 	@property
 	def state(self):
 		'''
-		Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are -1 if the position
-		is outsibe the board, 1 if there is a peg at this position, and 0 otherwise. 
+		Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are 1 if there is a peg
+		at this position, and 0 otherwise (and 0 outside the board). 
 		'''
-		state = np.zeros((7,7,3), dtype=np.int8)
+		#state = np.zeros((7,7,3), dtype=np.int8)
+		state = np.zeros((7,7,3), dtype=np.float32)
 		for pos, value in self.pegs.items():
 			state[3-pos[1], pos[0]+3,0] = value
 		state[:,:,1] = self.n_pegs

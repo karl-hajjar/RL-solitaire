@@ -29,6 +29,7 @@ def main():
 	print('## Agent params')
 	print('Agent : ' + agent_config['name'])
 	print('Gamma : ', agent_config['gamma'])
+	print('')
 
 	print('## Network Params')
 	print('Network used : ' + network_config['name'])

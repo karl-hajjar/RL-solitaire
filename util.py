@@ -37,8 +37,9 @@ def get_latest_checkpoint(path):
 
 def mask_out(policy, feasible_actions, grid):
 	mask = np.zeros_like(policy)
-	for i, (x,y) in enumerate(grid):
-		mask[3-y, x+3, feasible_actions[i]] = policy[3-y, x+3, feasible_actions[i]]
+	for i in range(len(grid)):
+		feasible_i = 4*i + np.argwhere(feasible_actions[i])
+		mask[feasible_i] = policy[feasible_i]
 	return mask
 
 
@@ -80,5 +81,9 @@ def rotate_state_action(state, action):
 	rotated_move_id = ROTATED_ACTIONS[angle_index, action[2]]
 	xr, yr = rot_pos((action[1]-3, 3-action[0]), angle)
 	return rotated_state, [3-yr, xr+3, rotated_move_id]
+
+
+
+
 
 

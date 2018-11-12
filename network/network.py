@@ -3,8 +3,9 @@ import tensorflow as tf
 import os 
 from time import sleep
 
-from build import *
-from util import entropy, flush_or_create
+from .build import *
+from util import entropy, flush_or_create	
+from env.env import N_ACTIONS
 
 
 ACTIVATION_DICT = dict({"identity" : tf.identity,
@@ -77,14 +78,16 @@ class Net(object):
 				bias_init_const=self.bias_init_const,
 				output_size=self.state_embedding_size)
 
-			self.policy = policy_head(state_emb, 
-						n_filters=self.n_filters, 
-						kernel_size=(3,3), 
-						strides=(1,1),
-						activation=self.activation, 
-						kernel_regularizer=l2_regularizer,
-						use_bias=self.use_bias,
-						bias_init_const=self.bias_init_const)
+			self.policy_logits = policy_head(state_emb, 
+				n_filters=self.n_filters, 
+				kernel_size=(3,3), 
+				strides=(1,1),
+				activation=self.activation, 
+				kernel_regularizer=l2_regularizer,
+				use_bias=self.use_bias,
+				bias_init_const=self.bias_init_const)
+
+			self.policy = tf.nn.softmax(self.policy_logits, name="policy")
 
 		with tf.name_scope('Entropy'):
 			self.entropy = tf.map_fn(entropy, self.policy, back_prop=False)
@@ -92,21 +95,24 @@ class Net(object):
 		with tf.name_scope('Targets'):
 			self.value_target = tf.placeholder(tf.float32, [None, 1], name="value_target")
 			self.advantage = tf.placeholder(tf.float32, [None, 1], name="advantage")
-			self.action_mask = tf.placeholder(tf.bool, [None, 7, 7, 4], name="action_mask")
+			self.action_mask = tf.placeholder(tf.float32, [None, N_ACTIONS], name="action_mask")
 
 		with tf.name_scope('Loss'):
 			self.critic_loss = tf.losses.mean_squared_error(self.value_target, self.value)
-			action_proba = tf.boolean_mask(self.policy, self.action_mask, name="action_proba")
-			self.actor_loss = - tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), tf.log(action_proba, name="log_action_prob")))
+			cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.action_mask, 
+																		 logits=self.policy_logits, 
+																		 name="cross_entropy_loss")
+			self.actor_loss = tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), cross_entropy_loss))
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 			self.loss = self.actor_coeff * self.actor_loss +\
-						0.*self.critic_coeff * self.critic_loss +\
-						0.*self.reg_coeff * self.l2_loss
+						self.critic_coeff * self.critic_loss +\
+						self.reg_coeff * self.l2_loss
 
 		with tf.name_scope('Optimizer'):
 			update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 			with tf.control_dependencies(update_ops):
-				optimizer = tf.train.AdamOptimizer(self.lr)
+				#optimizer = tf.train.AdamOptimizer(self.lr)
+				optimizer = tf.train.GradientDescentOptimizer(self.lr)
 				grads_and_vars = optimizer.compute_gradients(self.loss)
 				if self.grad_clip_norm:
 				    gradients, variables = zip(*grads_and_vars)
@@ -115,13 +121,12 @@ class Net(object):
 				    grads_and_vars = list(zip(gradients, variables))
 
 				self.opt_step = optimizer.minimize(self.loss, name="optim_step")
-
 				# use apply_gradients instead ?
+
 		self.build_summaries(grads_and_vars)
 
 
 	def build_summaries(self, grads_and_vars):
-		# define placeholders for summaries
 		with tf.name_scope('summaries'):
 			with tf.name_scope('values'):
 

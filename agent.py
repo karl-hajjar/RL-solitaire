@@ -8,7 +8,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from copy import deepcopy
 import os
 
-from env.env import GRID, ACTION_NAMES, POS_TO_INDEX
+from env.env import GRID, ACTION_NAMES, POS_TO_INDEX, N_ACTIONS
 from network.network import Net
 from util import mask_out, get_latest_checkpoint, rotate_state_action
 
@@ -139,12 +139,11 @@ class ActorCriticAgent(Agent):
 			next_state_value = 0
 		critic_target = reward + self.gamma * next_state_value 
 		advantage = critic_target - state_value 
-		x,y = GRID[action[0]]
-		action = np.array([3-y, x+3, action[1]])
+		action_index = 4*action[0] + action[1]
 		#state, action = rotate_state_action(state, action)
 		data = dict({"state" : state, 
 					 "advantage" : advantage, 
-					 "action" : action,
+					 "action" : action_index,
 					 "critic_target" : critic_target})
 		return data, end
 
@@ -152,20 +151,19 @@ class ActorCriticAgent(Agent):
 	def select_action(self, state, feasible_actions, greedy=False):
 		policy = mask_out(self.net.get_policy(state.reshape(1,7,7,self.state_channels)), feasible_actions, GRID)
 		# add small espsilon to make sure one of the feasible actions is picked
-		for i in range(4):
-			assert(policy[0,0,i] == 0)
-		policy[policy > 0] += 1e-6
+		# for i in range(4):
+		# 	assert(policy[0,0,i] == 0)
+		# policy[policy > 0] += 1e-6
 		policy = policy / np.sum(policy) # renormalize
-		assert(np.sum(policy) > 1 - 1e-4)
+		# assert(np.sum(policy) > 1 - 1e-4)
 		if greedy:
-			max_indices = np.argwhere(policy == np.max(policy))
-			x,y,i = max_indices[np.random.randint(0,len(max_indices))]
-			return POS_TO_INDEX[(x,y)], i
+			#max_indices = np.argwhere(policy == np.max(policy))
+			#ind = max_indices[np.random.randint(0,len(max_indices))][0]
+			ind = np.argmax(policy)
 		else:
-			index = np.random.choice(range(policy.size), p=policy.ravel())
-			x, ind = divmod(index, (policy.shape[1] * policy.shape[2]))
-			y, i = divmod(ind, policy.shape[2])
-			return POS_TO_INDEX[(x,y)], i
+			ind = np.random.choice(range(len(policy)), p=policy)
+		pos_id, move_id = divmod(ind,4)
+		return pos_id, move_id
 
 
 	def train(self, env, n_games, n_workers, display_every):
@@ -184,10 +182,10 @@ class ActorCriticAgent(Agent):
 				for key in ["advantage", "critic_target"]:
 					data[key] = np.array([dp[key] for dp in d]).reshape(-1,1) # reshape to get proper shape for tensorflow input
 				data["state"] = np.array([dp["state"] for dp in d]).reshape(-1,7,7,self.state_channels)
-				action_mask = np.zeros((len(d), 7, 7, 4), dtype=bool)
+				action_mask = np.zeros((len(d), N_ACTIONS), dtype=np.float32)
 				for i, dp in enumerate(d):
-					j,k,l = dp["action"]
-					action_mask[i,j,k,l] = True
+					index = dp["action"]
+					action_mask[i,index] = 1.0
 				data["action_mask"] = action_mask
 				# update network with the data produced
 				summaries, critic_loss, actor_loss, l2_loss, loss = self.net.optimize(data)
