@@ -149,13 +149,11 @@ class ActorCriticAgent(Agent):
 
 
 	def select_action(self, state, feasible_actions, greedy=False):
-		policy = mask_out(self.net.get_policy(state.reshape(1,7,7,self.state_channels)), feasible_actions, GRID)
-		# add small espsilon to make sure one of the feasible actions is picked
-		# for i in range(4):
-		# 	assert(policy[0,0,i] == 0)
-		# policy[policy > 0] += 1e-6
+		policy = self.net.get_policy(state.reshape(1,7,7,self.state_channels))
+		# add small epsilon to make sure one of the feasible actions is picked
+		policy[policy<1.0e-12] = 1.0e-12
+		policy = mask_out(policy, feasible_actions, GRID)
 		policy = policy / np.sum(policy) # renormalize
-		# assert(np.sum(policy) > 1 - 1e-4)
 		if greedy:
 			#max_indices = np.argwhere(policy == np.max(policy))
 			#ind = max_indices[np.random.randint(0,len(max_indices))][0]
@@ -190,7 +188,6 @@ class ActorCriticAgent(Agent):
 				# update network with the data produced
 				summaries, critic_loss, actor_loss, l2_loss, loss = self.net.optimize(data)
 
-
 				# write obtained summaries to file, so they can be displayed in TensorBoard
 				self.net.summary_writer.add_summary(summaries, self.net.steps)
 				self.net.summary_writer.flush()
@@ -213,10 +210,32 @@ class ActorCriticAgent(Agent):
 
 	def play(self, env, greedy=False):
 		# play game with agent until the end
+		G = 0.0
+		discount = 1.0
 		end = False
+
+		if self.render: # render the state of the board at the begining of the game 
+			env.init_fig()
+			env.render()
+			sleep(1.5)
+
 		while not end:
 			action = self.select_action(env.state, env.feasible_actions, greedy=greedy)
+			if self.render:
+				env.render(action=action, show_action=True) # render a first time displaying the action selected
+				sleep(0.8)
 			reward, _, end = env.step(action)
+			G += discount * reward
+			discount = discount * self.gamma
+			if self.render: 
+				env.render() # render a second time the state of the board after the action is played
+				sleep(0.6)
+
+		if self.render:
+			env.render()
+			sleep(2)
+			plt.close()
+
 		return (reward, env.n_pegs)
 
 

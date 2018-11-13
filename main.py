@@ -59,7 +59,7 @@ def main():
 	results_log_path = os.path.join(model_name, files_config['results_log_path'])
 
 	# fix random seed
-	if config['seed'] is None:
+	if config['Seed'] is None:
 		np.random.seed(seed=42)
 	else:
 		np.random.seed(int(seed))

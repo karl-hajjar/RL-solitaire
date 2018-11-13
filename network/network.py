@@ -39,6 +39,7 @@ class Net(object):
 		self.actor_coeff = config['actor_coeff']
 		self.critic_coeff = config['critic_coeff']
 		self.reg_coeff = config['reg_coeff']
+		self.entropy_coeff = config['entropy_coeff']
 
 		# init graph and session 
 		tf.reset_default_graph()
@@ -100,9 +101,14 @@ class Net(object):
 		with tf.name_scope('Loss'):
 			self.critic_loss = tf.losses.mean_squared_error(self.value_target, self.value)
 			cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.action_mask, 
-																		 logits=self.policy_logits, 
-																		 name="cross_entropy_loss")
-			self.actor_loss = tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), cross_entropy_loss))
+																		 	logits=self.policy_logits, 
+																		 	name="cross_entropy_loss")
+			# adding entropy to encourage exploration
+			policy_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.ones_like(self.policy_logits), 
+																 		logits=self.policy_logits, 
+																 		name="entropy")
+			self.actor_loss = tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), cross_entropy_loss)) -\
+							  self.entropy_coeff * 1/N_ACTIONS * tf.reduce_mean(policy_entropy)
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 			self.loss = self.actor_coeff * self.actor_loss +\
 						self.critic_coeff * self.critic_loss +\
@@ -177,10 +183,9 @@ class Net(object):
 						 self.value_target : data["critic_target"], 
 						 self.advantage : data["advantage"],
 						 self.action_mask : data["action_mask"]}
-			fetches = [self.value, self.policy, self.critic_loss, self.actor_loss, self.l2_loss, self.loss, self.summaries, self.opt_step]
-			value, policy, critic_loss, actor_loss, l2_loss, loss, summaries, _ = self.sess.run(fetches,
-																					 feed_dict=feed_dict)
-
+			fetches = [self.critic_loss, self.actor_loss, self.l2_loss, self.loss, self.summaries, self.opt_step]
+			critic_loss, actor_loss, l2_loss, loss, summaries, _ = self.sess.run(fetches,
+																				 feed_dict=feed_dict)
 			# increment number of steps
 			self.steps += 1
 			return summaries, critic_loss, actor_loss, l2_loss, loss

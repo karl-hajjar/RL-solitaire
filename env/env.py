@@ -139,6 +139,34 @@ class Env(object):
 				return ((N_PEGS - self.n_pegs) / (N_PEGS-1)) ** 2, self.state, False
 
 
+	def get_n_neighbours(self, pos):
+		n = 0
+		x,y = pos
+		if (x+1,y) in self.pegs.keys() and self.pegs[(x+1,y)] == 1:
+			n += 1
+		if (x,y+1) in self.pegs.keys() and self.pegs[(x,y+1)] == 1:
+			n += 1
+		if (x-1,y) in self.pegs.keys() and self.pegs[(x-1,y)] == 1:
+			n += 1
+		if (x,y-1) in self.pegs.keys() and self.pegs[(x,y-1)] == 1:
+			n += 1
+		return n 
+
+
+	def get_n_empty(self, pos):
+		n = 4
+		x,y = pos
+		if (x+1,y) not in self.pegs.keys() or self.pegs[(x+1,y)] == 1:
+			n -= 1
+		if (x,y+1) not in self.pegs.keys() or self.pegs[(x,y+1)] == 1:
+			n -= 1
+		if (x-1,y) not in self.pegs.keys() or self.pegs[(x-1,y)] == 1:
+			n -= 1
+		if (x,y-1) not in self.pegs.keys() or self.pegs[(x,y-1)] == 1:
+			n -= 1
+		return n 
+
+
 	@property
 	def state(self):
 		'''
@@ -146,11 +174,14 @@ class Env(object):
 		at this position, and 0 otherwise (and 0 outside the board). 
 		'''
 		#state = np.zeros((7,7,3), dtype=np.int8)
-		state = np.zeros((7,7,3), dtype=np.float32)
+		state = np.zeros((7,7,5), dtype=np.float32)
 		for pos, value in self.pegs.items():
 			state[3-pos[1], pos[0]+3,0] = value
-		state[:,:,1] = self.n_pegs
-		state[:,:,2] = N_PEGS - self.n_pegs
+			state[3-pos[1], pos[0]+3,1] = self.get_n_neighbours(pos)
+			state[3-pos[1], pos[0]+3,2] = self.get_n_empty(pos)
+
+		state[:,:,-2] = self.n_pegs / N_PEGS
+		state[:,:,-1] = (N_PEGS - self.n_pegs) / N_PEGS
 		return state
 
 
@@ -247,4 +278,4 @@ class Env(object):
 		plt.axis('scaled')
 		plt.title('Current State of the Board')
 		self.fig.canvas.draw()
-		[p.remove() for p in reversed(ax.patches)]
+		#[p.remove() for p in reversed(ax.patches)]
