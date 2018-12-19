@@ -90,8 +90,8 @@ class Net(object):
 
 			self.policy = tf.nn.softmax(self.policy_logits, name="policy")
 
-		with tf.name_scope('Entropy'):
-			self.entropy = tf.map_fn(entropy, self.policy, back_prop=False)
+		# with tf.name_scope('Entropy'):
+		# 	self.entropy = tf.map_fn(entropy, self.policy, back_prop=False)
 
 		with tf.name_scope('Targets'):
 			self.value_target = tf.placeholder(tf.float32, [None, 1], name="value_target")
@@ -104,11 +104,15 @@ class Net(object):
 																		 	logits=self.policy_logits, 
 																		 	name="cross_entropy_loss")
 			# adding entropy to encourage exploration
-			policy_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.ones_like(self.policy_logits), 
-																 		logits=self.policy_logits, 
-																 		name="entropy")
+			# batch_entropies = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.ones_like(self.policy_logits)/N_ACTIONS, 
+			# 													 		 logits=self.policy_logits, 
+			# 													 		 name="entropy")
+			batch_entropies = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy, 
+																 		 logits=self.policy_logits, 
+																 		 name="entropy")
+			self.policy_entropy = tf.reduce_mean(batch_entropies) 
 			self.actor_loss = tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), cross_entropy_loss)) -\
-							  self.entropy_coeff * 1/N_ACTIONS * tf.reduce_mean(policy_entropy)
+							  self.entropy_coeff * self.policy_entropy
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 			self.loss = self.actor_coeff * self.actor_loss +\
 						self.critic_coeff * self.critic_loss +\
@@ -117,16 +121,19 @@ class Net(object):
 		with tf.name_scope('Optimizer'):
 			update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 			with tf.control_dependencies(update_ops):
-				#optimizer = tf.train.AdamOptimizer(self.lr)
-				optimizer = tf.train.GradientDescentOptimizer(self.lr)
+				optimizer = tf.train.AdamOptimizer(self.lr)
+				#optimizer = tf.train.GradientDescentOptimizer(self.lr)
 				grads_and_vars = optimizer.compute_gradients(self.loss)
+				# grads_and_vars = optimizer.compute_gradients(self.critic_loss)
 				if self.grad_clip_norm:
-				    gradients, variables = zip(*grads_and_vars)
-				    gradients, _ = tf.clip_by_global_norm(t_list=gradients,
-				                                          clip_norm=self.grad_clip_norm)
-				    grads_and_vars = list(zip(gradients, variables))
+					print('grad-clip norm')
+					gradients, variables = zip(*grads_and_vars)
+					gradients, _ = tf.clip_by_global_norm(t_list=gradients,
+					                                      clip_norm=self.grad_clip_norm)
+					grads_and_vars = list(zip(gradients, variables))
 
-				self.opt_step = optimizer.minimize(self.loss, name="optim_step")
+				#self.opt_step = optimizer.minimize(self.loss, name="optim_step")
+				self.opt_step = optimizer.apply_gradients(grads_and_vars, name="optim_step")
 				# use apply_gradients instead ?
 
 		self.build_summaries(grads_and_vars)
@@ -137,7 +144,7 @@ class Net(object):
 			with tf.name_scope('values'):
 
 				value = tf.summary.scalar('value', tf.reduce_mean(self.value))
-				policy_entropy = tf.summary.scalar('policy_entropy', tf.reduce_mean(self.entropy))
+				policy_entropy = tf.summary.scalar('policy_entropy', self.policy_entropy)
 				value_loss = tf.summary.scalar('value_loss', self.critic_loss)
 				policy_loss = tf.summary.scalar('policy_loss', self.actor_loss)
 				l2_loss = tf.summary.scalar('l2_loss', self.l2_loss)

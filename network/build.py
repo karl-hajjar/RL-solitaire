@@ -5,7 +5,7 @@ from env.env import N_ACTIONS
 def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_regularizer, use_bias, bias_init_const):
 	# conv
 	out1 = tf.layers.conv2d(inputs=inputs, 
-                       filters=n_filters,
+                       filters=n_filters//2,
                        kernel_size=kernel_size,
                        strides=strides, 
                        padding="same", 
@@ -33,24 +33,7 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
 
 	# conv
 	out = tf.layers.conv2d(inputs=out, 
-                       filters=n_filters,
-                       kernel_size=kernel_size,
-                       strides=strides, 
-                       padding="same", 
-                       activation=tf.identity,
-                       kernel_regularizer=kernel_regularizer,
-                       use_bias=use_bias, 
-                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
-                       bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="state_conv3")
-
-	# skip connection
-	out = out1 + out
-	out1 = activation(out, name="embedding_skip_connection1")
-
-	# conv
-	out = tf.layers.conv2d(inputs=out1, 
-                       filters=n_filters,
+                       filters=n_filters*2,
                        kernel_size=kernel_size,
                        strides=strides, 
                        padding="same", 
@@ -59,56 +42,87 @@ def state_embedding(inputs, n_filters, kernel_size, strides, activation, kernel_
                        use_bias=use_bias, 
                        kernel_initializer=tf.contrib.layers.xavier_initializer(), 
                        bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="state_conv4")
+                       name="state_conv3")	
 
-	# conv
-	out = tf.layers.conv2d(inputs=out, 
-                       filters=n_filters,
-                       kernel_size=kernel_size,
-                       strides=strides, 
-                       padding="same", 
-                       activation=tf.identity,
-                       kernel_regularizer=kernel_regularizer,
-                       use_bias=use_bias, 
-                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
-                       bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="state_conv5")
+	# # conv
+	# out = tf.layers.conv2d(inputs=out, 
+ #                       filters=n_filters,
+ #                       kernel_size=kernel_size,
+ #                       strides=strides, 
+ #                       padding="same", 
+ #                       activation=tf.identity,
+ #                       kernel_regularizer=kernel_regularizer,
+ #                       use_bias=use_bias, 
+ #                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+ #                       bias_initializer=tf.constant_initializer(bias_init_const), 
+ #                       name="state_conv3")
 
-	# skip connection
-	out = out1 + out
-	out1 = activation(out, name="embedding_skip_connection2")
+	# # skip connection
+	# out = out1 + out
+	# out1 = activation(out, name="embedding_skip_connection1")
 
-	# conv
-	out = tf.layers.conv2d(inputs=out1, 
-                       filters=n_filters,
-                       kernel_size=kernel_size,
-                       strides=strides, 
-                       padding="same", 
-                       activation=activation,
-                       kernel_regularizer=kernel_regularizer,
-                       use_bias=use_bias, 
-                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
-                       bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="state_conv6")
+	# # conv
+	# out = tf.layers.conv2d(inputs=out1, 
+ #                       filters=n_filters,
+ #                       kernel_size=kernel_size,
+ #                       strides=strides, 
+ #                       padding="same", 
+ #                       activation=activation,
+ #                       kernel_regularizer=kernel_regularizer,
+ #                       use_bias=use_bias, 
+ #                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+ #                       bias_initializer=tf.constant_initializer(bias_init_const), 
+ #                       name="state_conv4")
 
-	# conv
-	out = tf.layers.conv2d(inputs=out, 
-                       filters=n_filters,
-                       kernel_size=kernel_size,
-                       strides=strides, 
-                       padding="same", 
-                       activation=tf.identity,
-                       kernel_regularizer=kernel_regularizer,
-                       use_bias=use_bias, 
-                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
-                       bias_initializer=tf.constant_initializer(bias_init_const), 
-                       name="state_conv7")
+	# # conv
+	# out = tf.layers.conv2d(inputs=out, 
+ #                       filters=n_filters,
+ #                       kernel_size=kernel_size,
+ #                       strides=strides, 
+ #                       padding="same", 
+ #                       activation=tf.identity,
+ #                       kernel_regularizer=kernel_regularizer,
+ #                       use_bias=use_bias, 
+ #                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+ #                       bias_initializer=tf.constant_initializer(bias_init_const), 
+ #                       name="state_conv5")
 
-	# skip connection
-	out = out1 + out
-	out = activation(out, name="embedding_skip_connection3")
+	# # skip connection
+	# out = out1 + out
+	# out1 = activation(out, name="embedding_skip_connection2")
+
+	# # conv
+	# out = tf.layers.conv2d(inputs=out1, 
+ #                       filters=n_filters,
+ #                       kernel_size=kernel_size,
+ #                       strides=strides, 
+ #                       padding="same", 
+ #                       activation=activation,
+ #                       kernel_regularizer=kernel_regularizer,
+ #                       use_bias=use_bias, 
+ #                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+ #                       bias_initializer=tf.constant_initializer(bias_init_const), 
+ #                       name="state_conv6")
+
+	# # conv
+	# out = tf.layers.conv2d(inputs=out, 
+ #                       filters=n_filters,
+ #                       kernel_size=kernel_size,
+ #                       strides=strides, 
+ #                       padding="same", 
+ #                       activation=tf.identity,
+ #                       kernel_regularizer=kernel_regularizer,
+ #                       use_bias=use_bias, 
+ #                       kernel_initializer=tf.contrib.layers.xavier_initializer(), 
+ #                       bias_initializer=tf.constant_initializer(bias_init_const), 
+ #                       name="state_conv7")
+
+	# # skip connection
+	# out = out1 + out
+	# out = activation(out, name="embedding_skip_connection3")
 
 	return out
+	# return out1
 
 
 def value_head(inputs, n_filters, activation, value_activation, kernel_regularizer, use_bias, bias_init_const, output_size):
@@ -137,7 +151,7 @@ def value_head(inputs, n_filters, activation, value_activation, kernel_regulariz
 	#                       bias_initializer=tf.constant_initializer(bias_init_const), name="value_dense1")
 
 	out = tf.layers.dense(inputs=flatten,
-	                      units=output_size//2, 
+	                      units=output_size, 
 	                      activation=activation,
 	                      kernel_regularizer=kernel_regularizer,
 	                      use_bias=use_bias,
@@ -158,7 +172,7 @@ def value_head(inputs, n_filters, activation, value_activation, kernel_regulariz
 def policy_head(inputs, n_filters, kernel_size, strides, activation, kernel_regularizer, use_bias, bias_init_const):
 	# 1x1 conv
 	out = tf.layers.conv2d(inputs=inputs, 
-                       filters=3,
+                       filters=4,
                        kernel_size=(1,1),
                        strides=(1,1), 
                        padding="valid", 

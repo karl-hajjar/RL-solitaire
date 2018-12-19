@@ -11,6 +11,7 @@ import warnings
 from env.env import Env
 from agent import ActorCriticAgent
 from util import read_config, flush_or_create
+from buffer import Buffer
 
 warnings.filterwarnings("ignore")
 
@@ -43,6 +44,8 @@ def main():
 	print('Learning rate : ', network_config['lr'])
 	print('Number of games per iteration : ', training_config['n_games'])
 	print('Number of workers : ', training_config['n_workers'])
+	print('Batch size : ', training_config['batch_size'])
+	print('Buffer size : ', training_config['buffer_size'])
 	print('')
 
 	print('## Evaluation params')
@@ -100,11 +103,13 @@ def main():
 
 	print('\n\n')
 	print('Starting training\n\n')
+	data_buffer = Buffer(capacity=training_config['buffer_size'])
+	batch_size = training_config['batch_size']
 	for it in tqdm(np.arange(start, training_config["n_iter"]), desc="parallel gameplay iterations"):
 		# play games to generate data and train the network
 		env.reset()
 		try:
-			agent.train(env, n_games_train, n_workers_train, display_every)
+			agent.train(env, n_games_train, data_buffer, batch_size, n_workers_train, display_every)
 		except Exception as error:
 			print('\n\n#### AN ERROR OCCURED WHILE TRAINING ####\n\n')
 			agent.net.summary_writer.close()

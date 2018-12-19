@@ -21,7 +21,7 @@ for ind, (x,y) in enumerate(GRID):
 
 # actions will be  ordered as follows : we take positions as they are ordered in GRID and list in order "up", "down", "right", "left" 
 # the 4 possible actions 
-N_PEGS = len(GRID) - 1 # center point in the grid does not contain any peg
+N_PEGS = len(GRID) - 1 # = 32 center point in the grid does not contain any peg
 N_ACTIONS = len(GRID) * 4
 ACTION_NAMES = ["up", "down", "right", "left"]
 MOVES = [(0,1), (0,-1), (1,0), (-1,0)]
@@ -133,10 +133,11 @@ class Env(object):
 			if np.sum(self.feasible_actions) == 0: # no more actions available
 				if self.verbose:
 					print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
-				return 0, self.state, True
+				return 1/(N_PEGS-1), self.state, True
 			else:
 				# reward is an increasing function of the percentage of the game achieved
-				return ((N_PEGS - self.n_pegs) / (N_PEGS-1)) ** 2, self.state, False
+				#return ((N_PEGS - self.n_pegs) / (N_PEGS-1)) ** 2, self.state, False
+				return 1/(N_PEGS-1), self.state, False
 
 
 	def get_n_neighbours(self, pos):
@@ -174,14 +175,14 @@ class Env(object):
 		at this position, and 0 otherwise (and 0 outside the board). 
 		'''
 		#state = np.zeros((7,7,3), dtype=np.int8)
-		state = np.zeros((7,7,5), dtype=np.float32)
+		state = np.zeros((7,7,3), dtype=np.float32)
 		for pos, value in self.pegs.items():
 			state[3-pos[1], pos[0]+3,0] = value
-			state[3-pos[1], pos[0]+3,1] = self.get_n_neighbours(pos)
-			state[3-pos[1], pos[0]+3,2] = self.get_n_empty(pos)
+			# state[3-pos[1], pos[0]+3,1] = self.get_n_neighbours(pos)
+			# state[3-pos[1], pos[0]+3,2] = self.get_n_empty(pos)
 
-		state[:,:,-2] = self.n_pegs / N_PEGS
-		state[:,:,-1] = (N_PEGS - self.n_pegs) / N_PEGS
+		state[:,:,1] = self.n_pegs - 1 / (N_PEGS-1)
+		state[:,:,2] = (N_PEGS - self.n_pegs) / (N_PEGS-1)
 		return state
 
 
@@ -278,4 +279,4 @@ class Env(object):
 		plt.axis('scaled')
 		plt.title('Current State of the Board')
 		self.fig.canvas.draw()
-		#[p.remove() for p in reversed(ax.patches)]
+		[p.remove() for p in reversed(ax.patches)]

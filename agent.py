@@ -132,14 +132,19 @@ class ActorCriticAgent(Agent):
 	def collect_data(self, env):
 		# return state, advantage, action, critic_target
 		state = env.state
-		action = self.select_action(state, env.feasible_actions)
+		action_index = self.select_action(state, env.feasible_actions)
+		action = divmod(action_index, 4)
 		reward, next_state, end = env.step(action)
-		state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,self.state_channels)).reshape(-1) # evaluate state values in a batch to save time
+
+		## USE A COPY OF THE NETWORK that will be FIXED for a few iterations to compute the value target of the next state
+
+		# evaluate state values in a batch to save time
+		state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,self.state_channels)).reshape(-1) 
 		if end:
 			next_state_value = 0
 		critic_target = reward + self.gamma * next_state_value 
 		advantage = critic_target - state_value 
-		action_index = 4*action[0] + action[1]
+		# action_index = 4*action[0] + action[1]
 		#state, action = rotate_state_action(state, action)
 		data = dict({"state" : state, 
 					 "advantage" : advantage, 
@@ -151,7 +156,7 @@ class ActorCriticAgent(Agent):
 	def select_action(self, state, feasible_actions, greedy=False):
 		policy = self.net.get_policy(state.reshape(1,7,7,self.state_channels))
 		# add small epsilon to make sure one of the feasible actions is picked
-		policy[policy<1.0e-12] = 1.0e-12
+		policy[policy<1.0e-7] = 1.0e-7
 		policy = mask_out(policy, feasible_actions, GRID)
 		policy = policy / np.sum(policy) # renormalize
 		if greedy:
@@ -160,13 +165,16 @@ class ActorCriticAgent(Agent):
 			ind = np.argmax(policy)
 		else:
 			ind = np.random.choice(range(len(policy)), p=policy)
-		pos_id, move_id = divmod(ind,4)
-		return pos_id, move_id
+		# pos_id, move_id = divmod(ind,4)
+		# return pos_id, move_id
+		return ind
 
 
-	def train(self, env, n_games, n_workers, display_every):
+	def train(self, env, n_games, data_buffer, batch_size, n_workers, display_every):
 			envs = np.array([deepcopy(env) for _ in range(n_games)])
 			ended = np.array([False for _ in range(n_games)])
+
+			## USE A BUFFER OF COLLECTED DATA TO TRAIN THE NETWORK (or wait until the end of a game to use the values)
 
 			pool = ThreadPool(n_workers)
 			tb_logs = []
@@ -175,13 +183,17 @@ class ActorCriticAgent(Agent):
 				# collect data from workers using same network stored only once in the base agent
 				results = pool.map(self.collect_data, envs[~ended])
 				d, ended_new = zip(*results)
+				# add data to buffer
+				data_buffer.add_list(d)
+				# sample data from the buffer
+				data_buffer.sample(n_samples=batch_size)
 				# prepare data to feed to tensorflow
 				data = dict({})
 				for key in ["advantage", "critic_target"]:
-					data[key] = np.array([dp[key] for dp in d]).reshape(-1,1) # reshape to get proper shape for tensorflow input
-				data["state"] = np.array([dp["state"] for dp in d]).reshape(-1,7,7,self.state_channels)
-				action_mask = np.zeros((len(d), N_ACTIONS), dtype=np.float32)
-				for i, dp in enumerate(d):
+					data[key] = np.array([dp[key] for dp in data_buffer.buffer]).reshape(-1,1) # reshape to get proper shape for tensorflow input
+				data["state"] = np.array([dp["state"] for dp in data_buffer.buffer]).reshape(-1,7,7,self.state_channels)
+				action_mask = np.zeros((len(data_buffer.buffer), N_ACTIONS), dtype=np.float32)
+				for i, dp in enumerate(data_buffer.buffer):
 					index = dp["action"]
 					action_mask[i,index] = 1.0
 				data["action_mask"] = action_mask
@@ -194,11 +206,12 @@ class ActorCriticAgent(Agent):
 
 				# display info on optimization step
 				if cmpt % display_every == 0:
+					print('Buffer size at step {} : {}'.format(self.net.steps, len(data_buffer.buffer)))
 					print('Losses at step ', cmpt)
-					print('loss : {:.3f} | actor loss : {:.3f} | critic loss : {:.3f} | reg loss : {:.3f}'.format(loss,
-																											  	   actor_loss,
-																											  	   critic_loss,
-																											  	   l2_loss))
+					print('loss : {:.3f} | actor loss : {:.3f} | critic loss : {:.6f} | reg loss : {:.3f}'.format(loss,
+																											  	  actor_loss,
+																											  	  critic_loss,
+																											  	  l2_loss))
 
 				# update values of cmpt and ended
 				cmpt += 1
@@ -220,7 +233,8 @@ class ActorCriticAgent(Agent):
 			sleep(1.5)
 
 		while not end:
-			action = self.select_action(env.state, env.feasible_actions, greedy=greedy)
+			action_index = self.select_action(env.state, env.feasible_actions, greedy=greedy)
+			action = divmod(action_index, 4)
 			if self.render:
 				env.render(action=action, show_action=True) # render a first time displaying the action selected
 				sleep(0.8)
@@ -236,7 +250,7 @@ class ActorCriticAgent(Agent):
 			sleep(2)
 			plt.close()
 
-		return (reward, env.n_pegs)
+		return (G, env.n_pegs)
 
 
 	def evaluate(self, env, n_games, n_workers):
