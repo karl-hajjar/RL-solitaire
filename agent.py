@@ -121,35 +121,70 @@ class ActorCriticAgent(Agent):
 			latest_checkpoint = get_latest_checkpoint(os.path.join(checkpoint_dir, "checkpoint"))
 			self.net.restore(os.path.join(checkpoint_dir, "checkpoint_{}".format(latest_checkpoint)))
 			# saver to save (and later restore) model checkpoints
-			self.net.saver = tf.train.Saver(max_to_keep=500-latest_checkpoint)
+			self.net.saver = tf.train.Saver(max_to_keep=500)
 		else:
 			self.net.saver = tf.train.Saver(max_to_keep=500)
 			self.net.initialize(checkpoint_dir)
 		self.net.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, self.net.sess.graph)
 		self.state_channels = net_config["state_channels"]
+		# self.target_net = deepcopy(self.net)
 
 
-	def collect_data(self, env):
+	def collect_data(self, env, T_update_net):
 		# return state, advantage, action, critic_target
-		state = env.state
-		action_index = self.select_action(state, env.feasible_actions)
-		action = divmod(action_index, 4)
-		reward, next_state, end = env.step(action)
+		# state = env.state
+		# action_index = self.select_action(state, env.feasible_actions)
+		# action = divmod(action_index, 4)
+		# reward, next_state, end = env.step(action)
 
 		## USE A COPY OF THE NETWORK that will be FIXED for a few iterations to compute the value target of the next state
+		t = 0
+		end = False
+		data = []
+		states = []
+		actions = []
+		rewards = []
 
-		# evaluate state values in a batch to save time
-		state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,self.state_channels)).reshape(-1) 
+		while t < T_update_net and not end:
+			state = env.state
+			states.append(state)
+			action_index = self.select_action(state, env.feasible_actions)
+			action = divmod(action_index, 4)
+			reward, next_state, end = env.step(action)
+			actions.append(action_index)
+			rewards.append(reward)
+			t += 1
+
 		if end:
-			next_state_value = 0
-		critic_target = reward + self.gamma * next_state_value 
-		advantage = critic_target - state_value 
-		# action_index = 4*action[0] + action[1]
-		#state, action = rotate_state_action(state, action)
-		data = dict({"state" : state, 
-					 "advantage" : advantage, 
-					 "action" : action_index,
-					 "critic_target" : critic_target})
+			R = 0.
+		else:
+			R = self.net.get_value(next_state.reshape(-1,7,7,self.state_channels)).reshape(-1)
+
+		# evaluate state values of all states encountered in a batch to save time
+		state_values = self.net.get_value(np.array(states).reshape(-1,7,7,self.state_channels)).reshape(-1) 
+
+		assert(len(states) == len(rewards) == len(actions) == len(state_values) == t)
+
+		for s in range(t):
+			R = rewards[t-s-1] + self.gamma * R
+			advantage = R - state_values[t-s-1]
+			data = [dict({"state" : states[t-s-1], 
+					 	  "advantage" : advantage, 
+					 	  "action" : actions[t-s-1],
+					 	  "critic_target" : R})] + data 
+
+		# # evaluate state values in a batch to save time
+		# state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,self.state_channels)).reshape(-1) 
+		# if end:
+		# 	next_state_value = 0
+		# critic_target = reward + self.gamma * next_state_value 
+		# advantage = critic_target - state_value 
+		# # action_index = 4*action[0] + action[1]
+		# #state, action = rotate_state_action(state, action)
+		# data = dict({"state" : state, 
+		# 			 "advantage" : advantage, 
+		# 			 "action" : action_index,
+		# 			 "critic_target" : critic_target})
 		return data, end
 
 
@@ -170,7 +205,7 @@ class ActorCriticAgent(Agent):
 		return ind
 
 
-	def train(self, env, n_games, data_buffer, batch_size, n_workers, display_every):
+	def train(self, env, n_games, data_buffer, batch_size, n_workers, display_every, T_update_net):
 			envs = np.array([deepcopy(env) for _ in range(n_games)])
 			ended = np.array([False for _ in range(n_games)])
 
@@ -181,19 +216,20 @@ class ActorCriticAgent(Agent):
 			cmpt = 0
 			while np.sum(ended) < n_games:
 				# collect data from workers using same network stored only once in the base agent
-				results = pool.map(self.collect_data, envs[~ended])
+				results = pool.map(lambda x: self.collect_data(x, T_update_net), envs[~ended])
 				d, ended_new = zip(*results)
 				# add data to buffer
-				data_buffer.add_list(d)
+				data_buffer.add_list([el for l in d for el in l])
+
 				# sample data from the buffer
-				data_buffer.sample(n_samples=batch_size)
+				batch = data_buffer.sample(n_samples=batch_size)
 				# prepare data to feed to tensorflow
 				data = dict({})
 				for key in ["advantage", "critic_target"]:
-					data[key] = np.array([dp[key] for dp in data_buffer.buffer]).reshape(-1,1) # reshape to get proper shape for tensorflow input
-				data["state"] = np.array([dp["state"] for dp in data_buffer.buffer]).reshape(-1,7,7,self.state_channels)
-				action_mask = np.zeros((len(data_buffer.buffer), N_ACTIONS), dtype=np.float32)
-				for i, dp in enumerate(data_buffer.buffer):
+					data[key] = np.array([dp[key] for dp in batch]).reshape(-1,1) # reshape to get proper shape for tensorflow input
+				data["state"] = np.array([dp["state"] for dp in batch]).reshape(-1,7,7,self.state_channels)
+				action_mask = np.zeros((len(batch), N_ACTIONS), dtype=np.float32)
+				for i, dp in enumerate(batch):
 					index = dp["action"]
 					action_mask[i,index] = 1.0
 				data["action_mask"] = action_mask
@@ -206,9 +242,8 @@ class ActorCriticAgent(Agent):
 
 				# display info on optimization step
 				if cmpt % display_every == 0:
-					print('Buffer size at step {} : {}'.format(self.net.steps, len(data_buffer.buffer)))
 					print('Losses at step ', cmpt)
-					print('loss : {:.3f} | actor loss : {:.3f} | critic loss : {:.6f} | reg loss : {:.3f}'.format(loss,
+					print('loss : {:.3f} | actor loss : {:.5f} | critic loss : {:.6f} | reg loss : {:.3f}'.format(loss,
 																											  	  actor_loss,
 																											  	  critic_loss,
 																											  	  l2_loss))

@@ -181,7 +181,7 @@ class Env(object):
 			# state[3-pos[1], pos[0]+3,1] = self.get_n_neighbours(pos)
 			# state[3-pos[1], pos[0]+3,2] = self.get_n_empty(pos)
 
-		state[:,:,1] = self.n_pegs - 1 / (N_PEGS-1)
+		state[:,:,1] = (self.n_pegs - 1) / (N_PEGS-1)
 		state[:,:,2] = (N_PEGS - self.n_pegs) / (N_PEGS-1)
 		return state
 

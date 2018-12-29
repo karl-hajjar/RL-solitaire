@@ -7,13 +7,91 @@ import os
 import pickle
 import logging
 import warnings
+from copy import deepcopy
+from multiprocessing.dummy import Pool as ThreadPool
+from random import shuffle 
 
 from env.env import Env
-from agent import ActorCriticAgent
+from agent import ActorCriticAgent, RandomAgent
 from util import read_config, flush_or_create
 from buffer import Buffer
 
 warnings.filterwarnings("ignore")
+
+def collect_random_data(agent):
+	env = Env()
+	random_agent = RandomAgent()
+	end = False
+	states = []
+	actions = []
+	rewards = []
+	data = []
+	discount_G = 1.0
+	G = 0.
+	t = 0
+	while not end:
+		states.append(env.state)
+		action = random_agent.select_action(env.feasible_actions)
+		action_index = 4*action[0] + action[1]
+		actions.append(action_index)
+		reward, _, end = env.step(action)
+		rewards.append(reward)
+		# discount = gamma
+		# for s in range(t):
+		# 	values[t-s-1] += discount * reward
+		# 	discount = discount * gamma
+		t += 1
+		G += discount_G * reward
+		discount_G = discount_G * agent.gamma
+
+	R = 0.
+
+	# evaluate state values of all states encountered in a batch to save time
+	state_values = agent.net.get_value(np.array(states).reshape(-1,7,7,agent.state_channels)).reshape(-1) 
+
+	for s in range(t):
+		R = rewards[t-s-1] + agent.gamma * R
+		advantage = R - state_values[t-s-1]
+		data = [dict({"state" : states[t-s-1], 
+				 	  "advantage" : advantage, 
+				 	  "action" : actions[t-s-1],
+				 	  "critic_target" : R})] + data 
+
+
+	assert(G == R)
+	assert(len(state_values) == len(states) == len(actions) == len(rewards) == t)
+
+	# data = []
+	# for s in range(len(states)-1):
+	# 	advantage = rewards[s] + values[s+1] - values[s]
+	# 	data.append(dict({"state" : states[s], 
+	# 					  "advantage" : advantage,
+	# 					  "critic_target" : values[s],
+	# 					  "action" : actions[s]}))
+
+	# T = len(states)-1
+	# advantage = rewards[T] - values[T] # next state value is 0 because it is terminal
+	# data.append(dict({"state" : states[T], 
+	# 				  "advantage" : advantage,
+	# 				  "critic_target" : values[T],
+	# 				  "action" : actions[T]}))
+
+	return data	
+
+
+def populate_buffer(agent, n_workers, buffer):
+	env = Env()
+	agents = [agent for _ in range(n_workers)]
+	pool = ThreadPool(n_workers)
+	while len(buffer.buffer) < buffer.capacity:
+		results = pool.map(collect_random_data, agents)
+		for data in results:
+			shuffle(data)
+			buffer.add_list(data)
+	pool.close()
+	pool.join()
+
+
 
 def main():
 	config = read_config("config.yaml")
@@ -94,22 +172,31 @@ def main():
 	display_every = training_config["display_every"]
 	n_games_train = training_config["n_games"]
 	n_workers_train = training_config["n_workers"]
+	T_update_net = training_config["T_update_net"]
+	T_update_target_net = training_config["T_update_target_net"]
 	n_games_eval = eval_config["n_games"]
 	n_workers_eval = eval_config["n_workers"]
+	prefill_buffer = training_config["prefill_buffer"]
+	# gamma = agent_config['gamma']
+
 	summary_dict = dict({})
+	data_buffer = Buffer(capacity=training_config['buffer_size'])
 
 	logger = logging.getLogger(__name__)
 
+	if prefill_buffer:
+		# populate buffer with intial data from random games
+		print('\nPopulating Buffer ... \n')
+		populate_buffer(agent, n_workers_train, data_buffer)
 
 	print('\n\n')
 	print('Starting training\n\n')
-	data_buffer = Buffer(capacity=training_config['buffer_size'])
 	batch_size = training_config['batch_size']
 	for it in tqdm(np.arange(start, training_config["n_iter"]), desc="parallel gameplay iterations"):
 		# play games to generate data and train the network
 		env.reset()
 		try:
-			agent.train(env, n_games_train, data_buffer, batch_size, n_workers_train, display_every)
+			agent.train(env, n_games_train, data_buffer, batch_size, n_workers_train, display_every, T_update_net)
 		except Exception as error:
 			print('\n\n#### AN ERROR OCCURED WHILE TRAINING ####\n\n')
 			agent.net.summary_writer.close()

@@ -110,11 +110,25 @@ class Net(object):
 			batch_entropies = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy, 
 																 		 logits=self.policy_logits, 
 																 		 name="entropy")
-			self.policy_entropy = tf.reduce_mean(batch_entropies) 
-			self.actor_loss = tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), cross_entropy_loss)) -\
-							  self.entropy_coeff * self.policy_entropy
+
+			policy_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.ones_like(self.policy_logits), 
+																 		logits=self.policy_logits, 
+																 		name="entropy")
+
+			self.true_actor_loss = tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), cross_entropy_loss)) -\
+							  self.entropy_coeff * 1/N_ACTIONS * tf.reduce_mean(policy_entropy)
+
+			self.actor_loss = tf.maximum(self.true_actor_loss, -10.0)
+
+			# self.policy_entropy = tf.reduce_mean(batch_entropies) 
+			self.true_policy_entropy = tf.reduce_mean(batch_entropies)
+			clipped_batch_entropies = tf.minimum(batch_entropies, 4.0)
+			clipped_policy_entropy = tf.reduce_mean(clipped_batch_entropies)
+			# self.actor_loss = tf.reduce_mean(tf.multiply(tf.squeeze(self.advantage), cross_entropy_loss)) -\
+			# 				  self.entropy_coeff * self.policy_entropy
 			self.l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-			self.loss = self.actor_coeff * self.actor_loss +\
+			self.loss = self.actor_coeff * self.actor_loss -\
+						self.entropy_coeff * clipped_policy_entropy +\
 						self.critic_coeff * self.critic_loss +\
 						self.reg_coeff * self.l2_loss
 
@@ -126,7 +140,6 @@ class Net(object):
 				grads_and_vars = optimizer.compute_gradients(self.loss)
 				# grads_and_vars = optimizer.compute_gradients(self.critic_loss)
 				if self.grad_clip_norm:
-					print('grad-clip norm')
 					gradients, variables = zip(*grads_and_vars)
 					gradients, _ = tf.clip_by_global_norm(t_list=gradients,
 					                                      clip_norm=self.grad_clip_norm)
@@ -144,10 +157,12 @@ class Net(object):
 			with tf.name_scope('values'):
 
 				value = tf.summary.scalar('value', tf.reduce_mean(self.value))
-				policy_entropy = tf.summary.scalar('policy_entropy', self.policy_entropy)
-				value_loss = tf.summary.scalar('value_loss', self.critic_loss)
-				policy_loss = tf.summary.scalar('policy_loss', self.actor_loss)
-				l2_loss = tf.summary.scalar('l2_loss', self.l2_loss)
+				# policy_entropy = tf.summary.scalar('policy_entropy', self.entropy_coeff * self.policy_entropy)
+				# policy_entropy = tf.summary.scalar('policy_entropy', self.policy_entropy)
+				policy_entropy = tf.summary.scalar('policy_entropy', self.true_policy_entropy)
+				value_loss = tf.summary.scalar('value_loss', self.critic_coeff * self.critic_loss)
+				policy_loss = tf.summary.scalar('policy_loss', self.actor_coeff * self.true_actor_loss)
+				l2_loss = tf.summary.scalar('l2_loss', self.reg_coeff * self.l2_loss)
 				loss = tf.summary.scalar('loss', self.loss)
 
 			for grad, var in grads_and_vars:
@@ -195,7 +210,7 @@ class Net(object):
 																				 feed_dict=feed_dict)
 			# increment number of steps
 			self.steps += 1
-			return summaries, critic_loss, actor_loss, l2_loss, loss
+			return summaries, self.critic_coeff * critic_loss, self.actor_coeff * actor_loss, self.reg_coeff * l2_loss, loss
 
 
 	def save_checkpoint(self, checkpoints_dir, it):

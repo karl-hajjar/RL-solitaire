@@ -24,9 +24,11 @@ class Buffer(object):
 
 
 	def sample(self, n_samples):
-		shuffled = self.buffer.copy()
-		shuffle(shuffled)
-		return shuffled[:n_samples]
+		# shuffled = self.buffer.copy()
+		# shuffle(shuffled)
+		shuffled_indexes = list(range(len(self.buffer)))
+		shuffle(shuffled_indexes)
+		return [self.buffer[index] for index in shuffled_indexes[:n_samples]]
 
 	# def sample_batch(self, batch_size):
 	# 	'''

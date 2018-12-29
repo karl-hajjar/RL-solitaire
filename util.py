@@ -31,8 +31,11 @@ def flush_or_create(directory):
 
 def get_latest_checkpoint(path):
 	with open(path) as checkpoints:
-		latest_checkpoint = len(checkpoints.readlines()) - 2 # -1 for header, and -1 since checkpoint 0 is included
-	return latest_checkpoint
+		# latest_checkpoint = len(checkpoints.readlines()) - 2 # -1 for header, and -1 since checkpoint 0 is included
+		first_line = checkpoints.readline()
+		checkpoint_index = int(first_line.split(' ')[1].split('"')[1].split('_')[1])
+	# return latest_checkpoint
+	return checkpoint_index
 
 
 def mask_out(policy, feasible_actions, grid):
