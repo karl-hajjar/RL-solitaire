@@ -3,10 +3,14 @@ Solving the game of peg solitaire with a Reinforcement Learning (RL) Algorithm.
 
 I used an adapted version of Asynchronous Advantage Actor Critic (A3C) which I implemented from scratch myself to train an RL agent to solve the game of peg solitaire. The game consists of 32 marbles (or pegs) set out in a cross shape. There are 33 positions in the cross-shaped board, and the initial position of the game contains all 32 marbles but one is missing in the center position of the cross. The goal is to remove the marbles one by one until there is only one left. To remove a marble, another marble has to move to an empty space and pass over the marble to remove. 
 
+See the gif demo below to better understand the game : 
+
+![](solitaire_1.gif)
+
 
 # Files Description
 
-- The file *env.py*contains the implementation of the soliatire environment as a Python Class <b>Env</b> and the basic functions (init, step, reset, etc) that will be used to interact with it. It also contains a function to visualize the environment.
+- The file *env.py* contains the implementation of the soliatire environment as a Python Class <b>Env</b> and the basic functions (init, step, reset, etc) that will be used to interact with it. It also contains a function to visualize the environment.
 
 - The file *agent.py* contains the implementation of different classes of agents. The basic core class and its methods are described first, then the classes <b>RandomAgent</b> and <b>ActorCriticAgent</b> are implemented using the base methods from the parent class <b>Agent</b>. The actor-critic agent implements A3C and uses and consists of a neural network implemented in the file *network.py* found in the folder network.
 
