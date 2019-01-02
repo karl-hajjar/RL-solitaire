@@ -46,18 +46,18 @@ def mask_out(policy, feasible_actions, grid):
 	return mask
 
 
-def softmax(target, axis=None, name=None):
-	with tf.name_scope(name, 'softmax', values=[target]):
-	    max_axis = tf.reduce_max(target, axis, keep_dims=True)
-	    target_exp = tf.exp(target-max_axis)
-	    normalize = tf.reduce_sum(target_exp, axis, keep_dims=True)
-	    softmax = target_exp / normalize
-	    return softmax
+# def softmax(target, axis=None, name=None):
+# 	with tf.name_scope(name, 'softmax', values=[target]):
+# 	    max_axis = tf.reduce_max(target, axis, keep_dims=True)
+# 	    target_exp = tf.exp(target-max_axis)
+# 	    normalize = tf.reduce_sum(target_exp, axis, keep_dims=True)
+# 	    softmax = target_exp / normalize
+# 	    return softmax
 
 
-def entropy(target, axis=None, name=None):
-	with tf.name_scope(name, 'softmax', values=[target]):
-		return -tf.reduce_sum(target * tf.log(target), axis=axis)
+# def entropy(target, axis=None, name=None):
+# 	with tf.name_scope(name, 'softmax', values=[target]):
+# 		return -tf.reduce_sum(target * tf.log(target), axis=axis)
 
 
 def rot_pos(pos,angle):
