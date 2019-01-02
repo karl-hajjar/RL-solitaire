@@ -30,3 +30,48 @@ The network design has been kept simple, although a more complex architecture wo
 The policy-value network first processes that input using three 2d-convolutions. Then this state representation is processed separately by the value head and the policy head. The value head consists of a 1x1 convolution  with stride 1, followed by a dense layer and then the output layer. The policy head consists of a 1x1 convolution with stride 1 followed by a dense layer giving the logits of a softmax distribution. 
 
 At each state of a game, we store the cube representation of the state, the critic target for this state is computed using the rewards cumulated during the 4 moves in which this state was observed as well as the value network for bootstrapping. The value network is used both to evaluate the value of the last state reached after the 4 moves and thus to obtain the critic target values, but also to evaluate each of the 4 states encountered, whose values will serve as baseline when computing the advantage for each of these for states. The action selected by the agent is also stored in order to train the actor (policy network). 
+
+
+# Running the agent
+
+To start training the agent, simply run from the root directory of the project :
+
+```bash
+python main.py
+```
+
+This will create or empty the necessary directories, and then start the training process. The network model will be saved at each iteration, the losses and network gradient and variable information will be logged to be displayed in TensorBoard, and the logs of the evaluation results will also be stored to be further analysed later on. 
+
+At the end of training, if you wish to see a demo of the agent completing the game, run the following commands from the root directory of the project : 
+
+first import the necessary package
+
+```python
+from env.env import Env
+from agent import ActorCriticAgent
+```
+
+then read the config file
+
+```python
+config = read_config("config.yaml")
+agent_config = config['Agent']
+network_config = agent_config['Network']
+training_config = config['Training']
+files_config = config['Files']
+eval_config = config['Evaluation']
+```
+
+then initialize the envrinonment and the agent. Don't forget to set restore=True in order to restore the latest version of the agent, and render=True to visualise the agent playing. The name 'actor-critic' in the checkpoint_dir argument might needed to be changed according to the name you chose for your agent in the config file.
+
+```python
+env = Env()
+agent = ActorCriticAgent(agent_config, network_config, checkpoint_dir='actor-critic/checkpoints/',
+                         tensorboard_log_dir='actor-critic/tensorboard/', restore=True, render=True)
+```
+
+Finally run the agent to see him solve the game of solitaire :
+
+```python
+agent.play(env)
+``
