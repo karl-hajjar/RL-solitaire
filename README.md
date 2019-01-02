@@ -5,7 +5,9 @@ I used an adapted version of Asynchronous Advantage Actor Critic (A3C) which I i
 
 See the gif demo below to better understand the game : 
 
-![](solitaire_1.gif)<!-- .element height="50%" width="50%" -->
+<!-- ![](solitaire_1.gif) -->
+<img src="solitaire_1.gif" width="40" height="40" />
+
 
 
 # Files Description
@@ -79,3 +81,7 @@ Finally run the agent to see him solve the game of solitaire :
 ```python
 agent.play(env)
 ```
+
+# Training and results
+
+With the configuration parameters as presented in the config file, training took 53 minutes on one CPU to complete the 800 iterations. At the end of training, the agent is able to solve the puzzle almost every time when sampling from the policy, and solves the puzzle every time when using a greedy policy, i.e. selecting at each move the most probable action from the policy. From the 620th training iteration, the agent solved the puzzle 99% of the time during evaluation. 
