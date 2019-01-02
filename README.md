@@ -5,7 +5,7 @@ I used an adapted version of Asynchronous Advantage Actor Critic (A3C) which I i
 
 See the gif demo below to better understand the game : 
 
-![](solitaire_1.gif =100x100)
+![](solitaire_1.gif)<!-- .element height="50%" width="50%" -->
 
 
 # Files Description
