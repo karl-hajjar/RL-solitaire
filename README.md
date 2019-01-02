@@ -1,24 +1,24 @@
 # RL-solitaire
 Solving the game of peg solitaire with a Reinforcement Learning (RL) Algorithm. 
 
-I used an adapted version of Asynchronous Advantage Actor Critic (A3C) which I implemented from scratch myself to train an RL agent to solve the game of peg solitaire. The game consists of 32 marbles (or pegs) set out in a cross shape. There are 33 positions in the cross-shaped board, and the start position of the game contains all 32 marbles but one is missing in the center position of the cross. The goal is remove the marbles one by one until there is only one left. To remove a marble, another marble has to move to an empty space and pass over the marble to remove. 
+I used an adapted version of Asynchronous Advantage Actor Critic (A3C) which I implemented from scratch myself to train an RL agent to solve the game of peg solitaire. The game consists of 32 marbles (or pegs) set out in a cross shape. There are 33 positions in the cross-shaped board, and the initial position of the game contains all 32 marbles but one is missing in the center position of the cross. The goal is to remove the marbles one by one until there is only one left. To remove a marble, another marble has to move to an empty space and pass over the marble to remove. 
 
 
 # Files Description
 
-- The file <it>env.py</it> contains the implementation of the soliatire environment as a Python Class <b>Env</b> and the basic functions (init, step, reset, etc) that will be used to interact with it. It also contains a function to visualize the environment.
+- The file *env.py*contains the implementation of the soliatire environment as a Python Class <b>Env</b> and the basic functions (init, step, reset, etc) that will be used to interact with it. It also contains a function to visualize the environment.
 
-- The file <it>agent.py</it> contains the implementation of different classes of agents. The basic core class and its methods are described first, then the classes <b>RandomAgent</b> and <b>ActorCriticAgent</b> are implemented using the base methods from the parent class <b>Agent</b>. The actor-critic agent implements A3C and uses and consists of a neural network implemented in the file <it>network.py</it> found in the folder network.
+- The file *agent.py* contains the implementation of different classes of agents. The basic core class and its methods are described first, then the classes <b>RandomAgent</b> and <b>ActorCriticAgent</b> are implemented using the base methods from the parent class <b>Agent</b>. The actor-critic agent implements A3C and uses and consists of a neural network implemented in the file *network.py* found in the folder network.
 
-- The folder <it>network</it> contains two python files <it>network.py</it> and <it>build.py</it>. The former contains a Python Class <b>Net</b> implementing a neural network in TensorFlow with a shared representation of the state which then splits into two heads : the policy head and the value head. The latter contains the functions to build the different blocks of the network. 
+- The folder *network* contains two python files *network.py* and *build.py*. The former contains a Python Class <b>Net</b> implementing a neural network in TensorFlow with a shared representation of the state which then splits into two heads : the policy head and the value head. The latter contains the functions to build the different blocks of the network. 
 
-- The file <it>buffer.py</it> contains a small Python Class implementing a buffer structure. This buffer will be used as a memory replay buffer during the training of the agent. 
+- The file *buffer.py* contains a small Python Class implementing a buffer structure. This buffer will be used as a memory replay buffer during the training of the agent. 
 
-- The file <it>util.py</it> contains utility functions to handle files and directories and other such handy functions.
+- The file *util.py* contains utility functions to handle files and directories and other such handy functions.
 
-- The file <it>config.yaml</it> contains the configuration parameters (directory names, hyperparameters of the network, number of workers, etc) for training the agent.
+- The file *config.yaml* contains the configuration parameters (directory names, hyperparameters of the network, number of workers, etc) for training the agent.
 
-- The file <it>main.py</it> contains the main file for training the agent. The config file is read and then the training of the agent can start with the parameters found in the configuration file.
+- The file *main.py* contains the main file for training the agent. The config file is read and then the training of the agent can start with the parameters found in the configuration file.
 
 
 # Description of the Method
@@ -74,4 +74,4 @@ Finally run the agent to see him solve the game of solitaire :
 
 ```python
 agent.play(env)
-``
+```
