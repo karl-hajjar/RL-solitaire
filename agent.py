@@ -127,17 +127,9 @@ class ActorCriticAgent(Agent):
 			self.net.initialize(checkpoint_dir)
 		self.net.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, self.net.sess.graph)
 		self.state_channels = net_config["state_channels"]
-		# self.target_net = deepcopy(self.net)
 
 
 	def collect_data(self, env, T_update_net):
-		# return state, advantage, action, critic_target
-		# state = env.state
-		# action_index = self.select_action(state, env.feasible_actions)
-		# action = divmod(action_index, 4)
-		# reward, next_state, end = env.step(action)
-
-		## USE A COPY OF THE NETWORK that will be FIXED for a few iterations to compute the value target of the next state
 		t = 0
 		end = False
 		data = []
@@ -173,18 +165,6 @@ class ActorCriticAgent(Agent):
 					 	  "action" : actions[t-s-1],
 					 	  "critic_target" : R})] + data 
 
-		# # evaluate state values in a batch to save time
-		# state_value, next_state_value = self.net.get_value(np.array([state, next_state]).reshape(-1,7,7,self.state_channels)).reshape(-1) 
-		# if end:
-		# 	next_state_value = 0
-		# critic_target = reward + self.gamma * next_state_value 
-		# advantage = critic_target - state_value 
-		# # action_index = 4*action[0] + action[1]
-		# #state, action = rotate_state_action(state, action)
-		# data = dict({"state" : state, 
-		# 			 "advantage" : advantage, 
-		# 			 "action" : action_index,
-		# 			 "critic_target" : critic_target})
 		return data, end
 
 

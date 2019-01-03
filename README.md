@@ -56,7 +56,7 @@ tensorboard --logdir .
 
 and then go to http://localhost:6006/ in your browser.
 
-At the end of training, if you wish to see a demo of the agent completing the game, run the following commands from the root directory of the project : 
+At the end of training, if you wish to see a demo of the agent completing the game, run the following commands in an ipython shell from the root directory of the project : 
 
 First import the necessary packages
 
@@ -71,9 +71,6 @@ Then read the config file
 config = read_config("config.yaml")
 agent_config = config['Agent']
 network_config = agent_config['Network']
-training_config = config['Training']
-files_config = config['Files']
-eval_config = config['Evaluation']
 ```
 
 Then initialize the environment and the agent. (Don't forget to set restore=True in order to restore the latest version of the agent, and render=True to visualise the agent playing. The name 'actor-critic' in the checkpoint_dir argument might needed to be changed according to the name you chose for your agent in the config file.)
@@ -92,4 +89,21 @@ agent.play(env)
 
 # Training and results
 
-With the configuration parameters as presented in the config file, training took 53 minutes on one CPU to complete the 800 iterations. At the end of training, the agent is able to solve the puzzle almost every time when sampling from the policy, and solves the puzzle every time when using a greedy policy, i.e. selecting at each move the most probable action from the policy. From the 620th training iteration, the agent solved the puzzle 99% of the time during evaluation. 
+With the configuration parameters as presented in the config file, training took 53 minutes on one CPU to complete the 800 iterations. At the end of training, the agent is able to solve the puzzle almost every time when sampling from the policy, and solves the puzzle every time when using a greedy policy, i.e. selecting at each move the most probable action from the policy. From the 700th training iteration, the agent solved the puzzle 99% of the time during evaluation. It thus takes a little more than 11 000 games for the agent to figure out how to solve the puzzle ! This corresponds to roughly 50 000 network updates. Below are depicted the curves of the reward and number of marbles left (mean and standard deviation) in the evaluation games as a function of the number of iterations. 
+
+<p align="center">
+<img src="rewards.jpeg" width="400" height="400" />
+</p>
+<p align="center">Reward as a function of the number of iterations<p align="center">
+
+<p align="center">
+<img src="pegs_left.jpeg" width="400" height="400" />
+</p>
+<p align="center">Number of marbles left as a function of the number of iterations<p align="center">
+
+Finally, you can observe in the gif below the agent solving the puzzle. The solution is produced using the latest version of the network and using a greedy policy (most probable move is selected at each step) : 
+
+<p align="center">
+<img src="solitaire_opt_cut.gif" width="400" height="400" />
+</p>
+<p align="center">Reward as a function of the number of iterations<p align="center">
