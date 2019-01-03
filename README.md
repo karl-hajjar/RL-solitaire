@@ -17,9 +17,9 @@ It is fairly easy to leave between 2 and 5 marbles at the end of the game, but m
 
 - The file *agent.py* contains the implementation of different classes of agents. The basic core class and its methods are described first, then the classes <b>RandomAgent</b> and <b>ActorCriticAgent</b> are implemented using the base methods from the parent class <b>Agent</b>. The actor-critic agent implements A3C and consists of a neural network implemented in the file *network.py* found in the folder *network*.
 
-- The folder *network* contains two python files *network.py* and *build.py*. The former contains a Python Class <b>Net</b> implementing a neural network in TensorFlow with a shared representation of the state which then splits into two heads : the policy head and the value head. The latter file contains the functions to build the different blocks of the network. 
+- The folder *network* contains two python files *network.py* and *build.py*. The former contains a Python Class <b>Net</b> implementing a neural network in TensorFlow with a shared representation of the state which then splits into two heads: the policy head and the value head. The latter file contains the functions to build the different blocks of the network. 
 
-- The file *buffer.py* contains a small Python Class implementing a buffer structure. This buffer will be used as a memory replay buffer during the training of the agent. The buffer has a fixed capacity, and once it is reached, the newest data are added and the oldest data removed.
+- The file *buffer.py* contains a small Python Class implementing a buffer structure. This buffer will be used as a memory replay buffer during the training of the agent. The buffer has a fixed capacity, and once it is reached, each time new data are added, the oldest data removed.
 
 - The file *util.py* contains utility functions to handle files and directories and other such handy functions.
 
@@ -30,7 +30,7 @@ It is fairly easy to leave between 2 and 5 marbles at the end of the game, but m
 
 # Description of the Method
 
-I used a slightly adapted version of A3C in which a certain number of games (here 16) are played simultaneously using the same agent (i.e. the same policy network). The data from those games is collected and stored in a memory buffer as a list of dictionnaries whose keys are <b>state</b>, <b>advantage</b>, <b>action selected</b>, and <b>critic target</b>. After every 4 moves played by the agents, data are sampled from the buffer and used to update the policy-value network of the agent using mini-batch gradient descent (using Adam optimizer). One iteration of training consists of playing out until the end the 16 games simultaneously and updating the network every time all of the 16 agents have taken 4 moves. At the end of each iteration, the network weights are saved, and an evaluation phase starts where the results of 30 games (played simultaneously with the latest update of the network) are collected and stored in a results file for later analysis. 
+I used a slightly adapted version of A3C, which I implemented myself, in which a certain number of games (here 16) are played simultaneously using the same agent (i.e. the same policy network). The data from those games are collected and stored in a memory buffer as a list of dictionnaries whose keys are <b>state</b>, <b>advantage</b>, <b>action selected</b>, and <b>critic target</b>. After every 4 moves played by the agents, data are sampled from the buffer and used to update the policy-value network of the agent using mini-batch gradient descent (using a batch size of 64, and the Adam optimizer). One iteration of training consists of playing out until the end the 16 games simultaneously and updating the network every time all of the 16 agents have taken 4 moves. At the end of each iteration, the network weights are saved, and an evaluation phase starts where the results of 30 games (played simultaneously with the latest update of the network) are collected and stored in a results file for later analysis. 
 
 The network design has been kept simple, although a more complex architecture would have yielded a faster learning. The input to the network is the state of the environment represented by a 7x7x3 cube, i.e. a 7x7 image with 3 channels (I have used the NHWC covention for TensorFlow tensors). The first channel contains integers 1 and 0 to indicate presence or abscence of a marble at each position. The positions outside the cross-shaped board are automatically filled with zeros. The two other channels contain each a single value broadcasted to the whole channel matrix. The first of those channels contains the percentage of marbles that have been removed so far, and the last contains the percentage of marbles left to remove in order to solve the game. 
 
@@ -48,7 +48,7 @@ python main.py
 
 This will create or empty the necessary directories, and then start the training process. The network model will be saved at each iteration, the losses and network gradients and variables information will be logged to be displayed in TensorBoard, and the logs of the evaluation results will also be stored to be further analysed later on. 
 
-To visualise the logs during training, under the directory name_of_the_agent/tensorboard/ (in my case, with the config file actor-critic/tensorboard/), run :
+To visualise the logs during training, under the directory name_of_the_agent/tensorboard/ (in my case, with the config file given, actor-critic/tensorboard/), run :
 
 ```bash
 tensorboard --logdir . 
