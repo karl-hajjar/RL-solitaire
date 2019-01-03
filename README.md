@@ -1,7 +1,9 @@
 # RL-solitaire
 Solving the game of peg solitaire with a Reinforcement Learning (RL) Algorithm. 
 
+<p style='text-align: justify;'>  
 I used an adapted version of Asynchronous Advantage Actor Critic ([A3C](https://arxiv.org/pdf/1602.01783.pdf)) which I implemented from scratch myself to train an RL agent to solve the game of peg solitaire. The game consists of 32 marbles (or pegs) set out in a cross shape. There are 33 positions in the cross-shaped board, and the initial position of the game contains all 32 marbles but one is missing in the center position of the cross. The goal is to remove the marbles one by one until there is only one left. To remove a marble, another marble has to move to an empty space and pass over the marble to remove. 
+</p>
 
 See the gif demo below to better understand the game : 
 
@@ -9,8 +11,9 @@ See the gif demo below to better understand the game :
 <img src="solitaire_1.gif" width="400" height="400" />
 </p>
 
+# Files Description 
 
-# Files Description
+<p style='text-align: justify;'>  
 
 - The folder *env* contains three files : *env.py*, *rendering.py* and *border_constraints.py*. The first file contains the implementation of the soliatire environment as a Python Class <b>Env</b> and the basic functions (init, step, reset, etc) that will be used to interact with it. It also contains a function (render) to visualize the environment. The file *border_constraints.py* contains a function to compute the actions which would yield a marble out of the borders of the board. 
 
@@ -26,9 +29,12 @@ See the gif demo below to better understand the game :
 
 - The file *main.py* contains the main file for training the agent. The config file is read and then the training of the agent can start with the parameters found in the configuration file.
 
+</p>
+
 
 # Description of the Method
 
+<p style='text-align: justify;'>  
 I used a slightly adapted version of A3C in which a certain number of games (here 16) are played simultaneously using the same agent (i.e. the same policy network). The data from those games is collected and stored in a memory buffer as a list of dictionnaries whose keys are <b>state</b>, <b>advantage</b>, <b>action selected</b>, and <b>critic target</b>. After every 4 moves played by the agents, data are sampled from the buffer and used to update the policy-value network of the agent using mini-batch gradient descent (using Adam optimizer). One iteration of training consists of playing out until the end the 16 games simultaneously and updating the network every time all of the 16 agents have taken 4 moves. At the end of each iteration, the network weights are saved, and an evaluation phase starts where the results of 30 games (played simultaneously with the latest update of the network) are collected and stored in a results file for later analysis. 
 
 The network design has been kept simple, although a more complex architecture would have yielded a faster learning. The input to the network is the state of the environment represented by a 7x7x3 cube, i.e. a 7x7 image with 3 channels (I have used the NHWC covention for TensorFlow tensors). The first channel contains integers 1 and 0 to indicate presence or abscence of a marble at each position. The positions outside the cross-shaped board are automatically filled with zeros. The two other channels contain each a single value broadcasted to the whole channel matrix. The first of those channels contains the percentage of marbles that have been removed so far, and the last contains the percentage of marbles left to remove in order to solve the game. 
@@ -36,7 +42,7 @@ The network design has been kept simple, although a more complex architecture wo
 The policy-value network first processes that input using three 2d-convolutions. Then, this state representation is processed separately by the value head and the policy head. The value head consists of a 1x1 convolution  with stride 1, followed by a dense layer and then the output layer. The policy head consists of a 1x1 convolution with stride 1 followed by a dense layer giving the logits of a softmax distribution. 
 
 At each state of a game, we store the cube representation of the state. The critic target for this state is computed using the rewards cumulated during the 4 moves in which this state was observed as well as the value network for bootstrapping. The value network is used both to evaluate the value of the last state reached after the 4 moves and thus to obtain the critic target values, but also to evaluate each of the 4 states encountered, whose values will serve as baseline when computing the advantage for each of these for states. The action selected by the agent is also stored in order to train the actor (policy network). 
-
+</p>
 
 # Running the agent
 
@@ -46,7 +52,9 @@ To start training the agent, simply run from the root directory of the project :
 python main.py
 ```
 
+<p style='text-align: justify;'>  
 This will create or empty the necessary directories, and then start the training process. The network model will be saved at each iteration, the losses and network gradients and variables information will be logged to be displayed in TensorBoard, and the logs of the evaluation results will also be stored to be further analysed later on. 
+</p>
 
 To visualise the logs during training, under the directory name_of_the_agent/tensorboard/ (in my case, with the config file actor-critic/tensorboard/), run :
 
