@@ -4,7 +4,7 @@ import os
 from time import sleep
 
 from .build import *
-from util import entropy, flush_or_create	
+from util import flush_or_create	
 from env.env import N_ACTIONS
 
 
