@@ -93,10 +93,11 @@ With the configuration parameters as presented in the config file, training took
 
 <p align="center">
   <img src="rewards_1.jpeg" width="400" height="300" title="Reward as a function of the number of iterations" />
-  <em>Reward as a function of the number of iterations</em>
   <img src="pegs_left_1.jpeg" width="400" height="300" title="Number of marbles left as a function of the number of iterations" />
-  <em>Number of marbles left as a function of the number of iterations</em>
 </p>
+
+<p align="center">Reward as a function of the number of iterations     Number of marbles left as a function of the number of iterations<p align="center">
+
 
 <!-- <p align="center">
 <img src="rewards.jpeg" width="400" height="400" />
