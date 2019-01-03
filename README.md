@@ -96,7 +96,7 @@ With the configuration parameters as presented in the config file, training took
   <img src="pegs_left_1.jpeg" width="400" height="300" title="Number of marbles left as a function of the number of iterations" />
 </p>
 
-<p align="center"> <font size="4">Reward vs. iterations</font> \t <font size="4"> Number of marbles left vs. iterations </font> <p align="center">
+<p align="center"> <font size="2">Reward vs. iterations</font> &emsp <font size="2"> Number of marbles left vs. iterations </font> <p align="center">
 
 
 <!-- <p align="center">
