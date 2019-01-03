@@ -92,8 +92,8 @@ agent.play(env)
 With the configuration parameters as presented in the config file, training took 53 minutes on one CPU to complete the 800 iterations. At the end of training, the agent is able to solve the puzzle almost every time when sampling from the policy, and solves the puzzle every time when using a greedy policy, i.e. selecting at each move the most probable action from the policy. From the 700th training iteration, the agent solved the puzzle 99% of the time during evaluation. It thus takes a little more than 11 000 games for the agent to figure out how to solve the puzzle ! This corresponds to roughly 50 000 network updates. Below are depicted the curves of the reward and number of marbles left (mean and standard deviation) in the evaluation games as a function of the number of iterations. 
 
 <p align="center">
-  <img src="rewards_1.jpeg" width="500" height="400" title="Reward as a function of the number of iterations" />
-  <img src="pegs_left_1.jpeg" width="500" height="400" title="Number of marbles left as a function of the number of iterations" />
+  <img src="rewards_1.jpeg" width="430" height="350" title="Reward as a function of the number of iterations" />
+  <img src="pegs_left_1.jpeg" width="430" height="350" title="Number of marbles left as a function of the number of iterations" />
 </p>
 
 <p align="center"> <font size="2">Reward vs. iterations</font> &emsp <font size="2"> Number of marbles left vs. iterations </font> <p align="center">
