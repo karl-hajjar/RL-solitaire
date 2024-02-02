@@ -62,7 +62,7 @@ First import the necessary packages
 
 ```python
 from env.env import Env
-from agent import ActorCriticAgent
+from agents.base_agent import ActorCriticAgent
 ```
 
 Then read the config file

@@ -10,7 +10,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from random import shuffle 
 
 from env.env import Env
-from agent import ActorCriticAgent, RandomAgent
+from agents.base_agent import ActorCriticAgent, RandomAgent
 from util import read_config, flush_or_create
 from utils.buffer import Buffer
 
