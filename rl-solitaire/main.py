@@ -183,7 +183,7 @@ def main():
 	logger = logging.getLogger(__name__)
 
 	if prefill_buffer:
-		# populate buffer with intial data from random games
+		# populate buffer with initial data from random games
 		print('\nPopulating Buffer ... \n')
 		populate_buffer(agent, n_workers_train, data_buffer)
 

@@ -1,46 +1,57 @@
 import numpy as np
 from copy import deepcopy
-from time import sleep
-from multiprocessing.dummy import Pool as ThreadPool
-import matplotlib.pyplot as plt
 
 from ..base_agent import BaseAgent
-from .actor_critic_config import ActorCriticConfig
-import torch
 
 
 class ActorCriticAgent(BaseAgent):
-    """ActorCriticAgent implements a class of agents using the actor-critic method."""
+    """ActorCriticAgent implements a class of agents using the actor-critic method"""
 
-    def __init__(self, config: ActorCriticConfig, network: torch.nn.Module):
-        super().__init__(config)
-        self.network = network
-
-    def get_value(self, state: np.array) -> np.array:
-        """
-
-        :param state: np.array of size (batch_size, state_shape)
-        :return: an np.array of shape of size (batch_size,) containing the value of each state in the batch
-        """
-        return self.network.get_value(torch.from_numpy(state)).numpy()
+    def __init__(self, agent_config, net_config, checkpoint_dir, tensorboard_log_dir, render=False, restore=False):
+        super().__init__(agent_config['name'], agent_config['gamma'], render)
+        self.net = Net(net_config)
+        self.net.build()
+        if restore:
+            latest_checkpoint = get_latest_checkpoint(os.path.join(checkpoint_dir, "checkpoint"))
+            self.net.restore(os.path.join(checkpoint_dir, "checkpoint_{}".format(latest_checkpoint)))
+            # saver to save (and later restore) model checkpoints
+            self.net.saver = tf.train.Saver(max_to_keep=500)
+        else:
+            self.net.saver = tf.train.Saver(max_to_keep=500)
+            self.net.initialize(checkpoint_dir)
+        self.net.summary_writer = tf.summary.FileWriter(tensorboard_log_dir, self.net.sess.graph)
+        self.state_channels = net_config["state_channels"]
 
     def collect_data(self, env, T):
-        states, actions, rewards, next_state, end = super().collect_data(env, T)
-        t = len(states)
+        t = 0
+        end = False
+        data = []
+        states = []
+        actions = []
+        rewards = []
+
+        while t < T and not end:
+            state = env.state
+            states.append(state)
+            action_index = self.select_action(state, env.feasible_actions)
+            action = divmod(action_index, 4)
+            reward, next_state, end = env.step(action)
+            actions.append(action_index)
+            rewards.append(reward)
+            t += 1
 
         if end:
             R = 0.
         else:
-            R = self.get_value(next_state[np.newaxis, :])[0, 0]
+            R = self.net.get_value(next_state.reshape(-1, 7, 7, self.state_channels)).reshape(-1)
 
         # evaluate state values of all states encountered in a batch to save time
-        state_values = self.get_value(np.array(states)).reshape(-1)
+        state_values = self.net.get_value(np.array(states).reshape(-1, 7, 7, self.state_channels)).reshape(-1)
 
-        assert (t == len(rewards) == len(actions) == len(state_values))
+        assert (len(states) == len(rewards) == len(actions) == len(state_values) == t)
 
-        data = []
         for s in range(t):
-            R = rewards[t - s - 1] + self.discount * R
+            R = rewards[t - s - 1] + self.gamma * R
             advantage = R - state_values[t - s - 1]
             data = [dict({"state": states[t - s - 1],
                           "advantage": advantage,

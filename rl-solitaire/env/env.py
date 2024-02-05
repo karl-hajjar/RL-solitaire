@@ -10,17 +10,18 @@ GRID = [(i, j) for j in [-3, -2] for i in [-1, 0, 1]] + \
 # positions (x,y) in the grid are related to indexes (i,j) of a 7x7 array by
 # i = 3 - y
 # j = x + 3
-POS_TO_INDEX = dict()
-for ind, (x_, y_) in enumerate(GRID):
-    POS_TO_INDEX[(3 - y_, x_ + 3)] = ind
+# POS_TO_INDEX = {(3 - y_, x_ + 3): ind for ind, (x_, y_) in enumerate(GRID)}
+POS_TO_INDICES = {(x_, y_): (3 - y_, x_ + 3) for x_, y_ in GRID}
 
 # actions will be  ordered as follows : we take positions as they are ordered in GRID and list in order "up", "down",
 # "right", "left", i.e. the 4 possible actions
-N_PEGS = len(GRID) - 1  # = 32 center point in the grid does not contain any peg
-N_ACTIONS = len(GRID) * 4
+N_PEGS = len(GRID) - 1  # = 32, center point in the grid does not contain any peg
 ACTION_NAMES = ["up", "down", "right", "left"]
 MOVES = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+N_ACTIONS = len(GRID) * len(MOVES)
 OUT_OF_BORDER_ACTIONS = compute_out_of_border_actions(GRID)
+
+N_STATE_CHANNELS = 3
 
 
 class Env(object):
@@ -110,9 +111,9 @@ class Env(object):
         x, y = pos
         d_x, d_y = MOVES[move_id]
         self.pegs[pos] = 0  # peg moves from its current position
-        self.pegs[(x + d_x, y + d_y)] = 0  # jumps over an adjacent peg
-        self.pegs[(x + 2 * d_x, y + 2 * d_y)] = 1  # ends up in new position
-        self.n_pegs -= 1
+        self.pegs[(x + d_x, y + d_y)] = 0  # jumps over an adjacent peg, which is removed
+        self.pegs[(x + 2 * d_x, y + 2 * d_y)] = 1  # initial peg ends up in new position
+        self.n_pegs -= 1  # adjacent peg was removed
 
         # check for game end
         if self.n_pegs == 1:
@@ -131,15 +132,21 @@ class Env(object):
                 # return ((N_PEGS - self.n_pegs) / (N_PEGS-1)) ** 2, self.state, False
                 return 1 / (N_PEGS - 1), self.state, False
 
+    @staticmethod
+    def convert_action_id_to_action(action_index):
+        return divmod(action_index, len(MOVES))
+
     @property
     def state(self):
         '''
         Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are 1 if there is a peg
         at this position, and 0 otherwise (and 0 outside the board).
         '''
-        state = np.zeros((7, 7, 3), dtype=np.float32)
+        state = np.zeros((7, 7, N_STATE_CHANNELS), dtype=np.float32)
         for pos, value in self.pegs.items():
-            state[3 - pos[1], pos[0] + 3, 0] = value
+            i, j = POS_TO_INDICES[pos]
+            # state[3 - pos[1], pos[0] + 3, 0] = value
+            state[i, j, 0] = value
 
         state[:, :, 1] = (self.n_pegs - 1) / (N_PEGS - 1)  # percentage of pegs left to solve the game
         state[:, :, 2] = (N_PEGS - self.n_pegs) / (N_PEGS - 1)  # percentage of pegs already removed
