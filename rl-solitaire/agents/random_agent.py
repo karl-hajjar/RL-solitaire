@@ -6,9 +6,9 @@ from .base_agent import BaseAgent
 class RandomAgent(BaseAgent):
     """RandomAgent is class of agents which select actions randomly"""
 
-    def __init__(self, name="Random Agent", gamma=1.0, render=False):
+    def __init__(self, name="RandomAgent", discount=1.0):
         '''
-        Instanciates an object of the class RandomAgent by initializing the seed, defining the name of the agent, and setting
+        Instantiates an object of the class RandomAgent by initializing the seed, defining the name of the agent, and setting
         the render parameter.
 
         Parameters
@@ -27,9 +27,9 @@ class RandomAgent(BaseAgent):
         render : bool
             Whether or not to display a visual representation of the game as the agent plays.
         '''
-        super().__init__(name, gamma, render)
+        super().__init__(name, discount)
 
-    def select_action(self, state, feasible_actions):
+    def select_action(self, state, feasible_actions, greedy=False):
         '''
         Selects an action at random from the legal actions in the current state of the env, which are given by `feasible_actions`.
 

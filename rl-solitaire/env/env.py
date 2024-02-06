@@ -1,6 +1,5 @@
 import numpy as np
 
-from .border_constraints import compute_out_of_border_actions
 from .rendering import *
 
 GRID = [(i, j) for j in [-3, -2] for i in [-1, 0, 1]] + \
@@ -10,18 +9,74 @@ GRID = [(i, j) for j in [-3, -2] for i in [-1, 0, 1]] + \
 # positions (x,y) in the grid are related to indexes (i,j) of a 7x7 array by
 # i = 3 - y
 # j = x + 3
-# POS_TO_INDEX = {(3 - y_, x_ + 3): ind for ind, (x_, y_) in enumerate(GRID)}
 POS_TO_INDICES = {(x_, y_): (3 - y_, x_ + 3) for x_, y_ in GRID}
 
-# actions will be  ordered as follows : we take positions as they are ordered in GRID and list in order "up", "down",
+# actions are ordered as follows : we take positions as they are ordered in GRID and list in order "up", "down",
 # "right", "left", i.e. the 4 possible actions
 N_PEGS = len(GRID) - 1  # = 32, center point in the grid does not contain any peg
 ACTION_NAMES = ["up", "down", "right", "left"]
 MOVES = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-N_ACTIONS = len(GRID) * len(MOVES)
-OUT_OF_BORDER_ACTIONS = compute_out_of_border_actions(GRID)
+ACTIONS = [(pos, move) for pos in GRID for move in MOVES]
+N_ACTIONS = len(ACTIONS)  # = len(GRID) * len(MOVES) = 33 * 4 = 132
 
 N_STATE_CHANNELS = 3
+
+
+def _compute_out_of_border_actions(grid):
+    '''
+    Returns a 2d-array whose shape is (n,m) where n is the number of positions in the grid, and m=4 for every possible move (up, down,
+    right, left).
+
+    Parameters
+    ----------
+    grid : list of tuples (x,y) of ints
+        List of positions in the grid.
+
+    Returns
+    -------
+    out : 2d-array of bools
+        An array specifying, for each position, if moves will end up out of the borders of the game (True) or not (False).
+    '''
+    out_of_border = np.zeros((len(grid), 4), dtype=bool)
+    for i, pos in enumerate(grid):
+        x, y = pos
+
+        # check up
+        if y >= 0:
+            if x < -1 or x > 1:
+                out_of_border[i, 0] = True
+            else:
+                if y >= 2:
+                    out_of_border[i, 0] = True
+
+        # check down
+        if y <= 0:
+            if x < -1 or x > 1:
+                out_of_border[i, 1] = True
+            else:
+                if y <= -2:
+                    out_of_border[i, 1] = True
+
+        # check right
+        if x >= 0:
+            if y < -1 or y > 1:
+                out_of_border[i, 2] = True
+            else:
+                if x >= 2:
+                    out_of_border[i, 2] = True
+
+        # check left
+        if x <= 0:
+            if y < -1 or y > 1:
+                out_of_border[i, 3] = True
+            else:
+                if x <= -2:
+                    out_of_border[i, 3] = True
+
+    return out_of_border
+
+
+OUT_OF_BORDER_ACTIONS = _compute_out_of_border_actions(GRID)
 
 
 class Env(object):
@@ -29,28 +84,23 @@ class Env(object):
 
     def __init__(self, verbose=False, init_fig=False, interactive_plot=False):
         '''
-        Instanciates an object of the class Env by initializing the number of pegs in the game as well as their positions on the grid.
+        Instantiates an object of the class Env by initializing the number of pegs in the game as well as their
+        positions on the grid.
 
         Parameters
         ----------
         verbose : bool (default False)
             Whether or not to display messages.
         init_fig : bool (default False)
-            Whether or not to intialize a figure for rendering.
+            Whether or not to initialize a figure for rendering.
 
         Attributes
         ----------
-        n_pegs : int
-            Number of pegs remaining on the board
-        pegs : dict of tuples of ints
-            Keys are the positions in the grid, and values are binary ints indicating the presence (1) or abscence (0) of pegs.
-        fig :  matplotlib.figure.Figure
-            The figure to render plots
-        ax : matplotlib.axes.Axes
-            Axes of the plot
+        n_pegs : int Number of pegs remaining on the board pegs : dict of tuples of ints Keys are the positions in the
+        grid, and values are binary ints indicating the presence (1) or absence (0) of pegs. fig :
+        matplotlib.figure.Figure The figure to render plots ax : matplotlib.axes.Axes Axes of the plot.
         '''
         self.n_pegs = N_PEGS
-        assert self.n_pegs == 32
         self._init_pegs()
         if init_fig:
             self.init_fig(interactive_plot)
@@ -139,13 +189,12 @@ class Env(object):
     @property
     def state(self):
         '''
-        Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are 1 if there is a peg
-        at this position, and 0 otherwise (and 0 outside the board).
+        Returns the state of the env as a 2d-array of ints. The state is represented as a 7x7 grid where values are 1
+        if there is a peg at this position, and 0 otherwise (and 0 outside the board).
         '''
         state = np.zeros((7, 7, N_STATE_CHANNELS), dtype=np.float32)
         for pos, value in self.pegs.items():
             i, j = POS_TO_INDICES[pos]
-            # state[3 - pos[1], pos[0] + 3, 0] = value
             state[i, j, 0] = value
 
         state[:, :, 1] = (self.n_pegs - 1) / (N_PEGS - 1)  # percentage of pegs left to solve the game
@@ -155,34 +204,27 @@ class Env(object):
     @property
     def feasible_actions(self):
         '''
-        Returns a 2d-array of bools indicating, for each position on the grid, whether each action (up, down, right, left) is feasible
-        (True) or not (False).
+        Returns a 2d-array of bools indicating, for each position on the grid, whether each action (up, down, right,
+        left) is feasible (True) or not (False).
         '''
-        actions = np.ones((len(GRID), 4), dtype=bool)
-        # go through all positions and update infeasible actions
-        for i, pos in enumerate(GRID):
-            if self.pegs[pos] == 0:  # if no peg at the position no action feasible from that position
-                actions[i, :] = False
-            else:
-                x, y = pos
-                out_of_borders = OUT_OF_BORDER_ACTIONS[i]
-                actions[i, out_of_borders] = False
-                for k in range(4):
-                    if not out_of_borders[k]:
-                        if not self.action_jump_feasible(pos, k):
-                            actions[i, k] = False
-        return actions
+        feasible_actions = ~OUT_OF_BORDER_ACTIONS  # 2d bool array (len(GRID), len(MOVES))
+        where_no_peg = np.array([self.pegs[pos] == 0 for pos in GRID])
+        feasible_actions[where_no_peg, :] = False
+        feasible = np.argwhere(feasible_actions)
+        action_jump_feasible_np = np.vectorize(self.action_jump_feasible)
+        feasible_actions[feasible[:, 0], feasible[:, 1]] = action_jump_feasible_np(feasible[:, 0], feasible[:, 1])
+        return feasible_actions
 
-    def action_jump_feasible(self, pos, move_id):
+    def action_jump_feasible(self, pos_index, move_id):
         '''
-        Returns a boolean indicating whether or not the move of id move_id (in {0,1,2,3}) of jumping over a peg is feasible at
-        position pos in the grid. The move is feasible if there is a peg to jump over and if there is no peg on the potential arrival
-        position in the grid.
+        Returns a boolean indicating whether or not the move of id move_id (in [0,1,2,3]) of jumping over a peg is
+        feasible at position pos in the grid. The move is feasible if there is a peg to jump over and if there is no
+        peg on the potential arrival position in the grid.
 
         Parameters
         ----------
-        pos : tuple of ints
-            A tuple representing the position considered in the grid.
+        pos_index : int
+            The index of the considered position in the grid.
         move_id : int
             Gives the id of the move considered.
 
@@ -191,8 +233,9 @@ class Env(object):
         out : bool
             A boolean indicating if the move is feasible or not.
         '''
-        x, y = pos
+        x, y = GRID[pos_index]
         d_x, d_y = MOVES[move_id]
+
         return self.pegs[(x + d_x, y + d_y)] == 1 and self.pegs[(x + 2 * d_x, y + 2 * d_y)] == 0
 
     def render(self, action=None, show_action=False, show_axes=False):

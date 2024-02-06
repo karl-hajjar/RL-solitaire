@@ -2,6 +2,7 @@ Click
 click
 numpy
 pyyaml
+pytest
 matplotlib
 seaborn
 notebook

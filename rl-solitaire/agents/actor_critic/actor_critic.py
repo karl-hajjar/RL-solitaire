@@ -12,8 +12,8 @@ import torch
 class ActorCriticAgent(BaseAgent):
     """ActorCriticAgent implements a class of agents using the actor-critic method."""
 
-    def __init__(self, config: ActorCriticConfig, network: torch.nn.Module):
-        super().__init__(config)
+    def __init__(self, network: torch.nn.Module, name="ActorCriticAgent", discount=1.0):
+        super().__init__(name, discount)
         self.network = network
 
     def get_value(self, state: np.array) -> np.array:
@@ -24,14 +24,13 @@ class ActorCriticAgent(BaseAgent):
         """
         return self.network.get_value(torch.from_numpy(state)).numpy()
 
-    def collect_data(self, env, T):
-        states, actions, rewards, next_state, end = super().collect_data(env, T)
+    def _format_data(self, states, actions, rewards, next_state, end):
         t = len(states)
 
         if end:
-            R = 0.
+            value = 0.
         else:
-            R = self.get_value(next_state[np.newaxis, :])[0, 0]
+            value = self.get_value(next_state[np.newaxis, :])[0, 0]
 
         # evaluate state values of all states encountered in a batch to save time
         state_values = self.get_value(np.array(states)).reshape(-1)
@@ -40,12 +39,12 @@ class ActorCriticAgent(BaseAgent):
 
         data = []
         for s in range(t):
-            R = rewards[t - s - 1] + self.discount * R
-            advantage = R - state_values[t - s - 1]
+            value = rewards[t - s - 1] + self.discount * value
+            advantage = value - state_values[t - s - 1]
             data = [dict({"state": states[t - s - 1],
                           "advantage": advantage,
                           "action": actions[t - s - 1],
-                          "critic_target": R})] + data
+                          "critic_target": value})] + data
 
         return data, end
 

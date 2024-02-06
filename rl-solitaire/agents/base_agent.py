@@ -3,14 +3,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .agent_config import AgentConfig
+from .utils import mask_infeasible_actions
+
+MIN_ACTION_PROBA = 1.0e-7
 
 
 class BaseAgent:
     """Agent is the base class for implementing agents to play the game of solitaire"""
 
-    def __init__(self, config: AgentConfig):
-        self._name = config.name
-        self.discount = config.discount
+    def __init__(self, name="BaseAgent", discount=1.0):
+        self._name = name
+        self.discount = discount
 
     @property
     def name(self):
@@ -51,8 +54,16 @@ class BaseAgent:
 
         return G, env.n_pegs
 
-    def select_action(self, state, feasible_actions):
-        pass
+    def select_action(self, state, feasible_actions, greedy=False):
+        policy = self.get_policy(state)
+        # add small epsilon to make sure one of the feasible actions is picked (avoid issues with numerical errors)
+        policy[policy < MIN_ACTION_PROBA] = MIN_ACTION_PROBA
+        policy = mask_infeasible_actions(policy, feasible_actions)  # action probas are re-normalized by default
+        if greedy:
+            action_index = np.argmax(policy)
+        else:
+            action_index = np.random.choice(range(len(policy)), p=policy)
+        return action_index
 
     def collect_data(self, env, T):
         if T <= 0:
@@ -74,7 +85,7 @@ class BaseAgent:
             rewards.append(reward)
             t += 1
 
-        return states, actions, rewards, next_state, end
+        return self._format_data(states, actions, rewards, next_state, end), end
 
     def _format_data(self, states, actions, rewards, next_state, end):
         t = len(states)
@@ -82,6 +93,7 @@ class BaseAgent:
         data = [{"state": states[s],
                  "action": actions[s],
                  "reward": rewards[s]} for s in range(t)]
+        return data
 
     def get_policy(self, state: np.array):
         pass
