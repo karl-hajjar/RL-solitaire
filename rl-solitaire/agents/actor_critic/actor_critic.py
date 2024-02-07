@@ -1,11 +1,8 @@
 import numpy as np
 from copy import deepcopy
-from time import sleep
 from multiprocessing.dummy import Pool as ThreadPool
-import matplotlib.pyplot as plt
 
 from ..base_agent import BaseAgent
-from .actor_critic_config import ActorCriticConfig
 import torch
 
 
@@ -18,11 +15,19 @@ class ActorCriticAgent(BaseAgent):
 
     def get_value(self, state: np.array) -> np.array:
         """
-
+        Returns the values estimated using the agent's NN on a batch of states.
         :param state: np.array of size (batch_size, state_shape)
-        :return: an np.array of shape of size (batch_size,) containing the value of each state in the batch
+        :return: an np.array of shape of size (batch_size,) containing the value of each state in the batch.
         """
         return self.network.get_value(torch.from_numpy(state)).numpy()
+
+    def get_policy(self, state: np.array) -> np.array:
+        """
+        Returns the policies obtained from agent's NN on a batch of states.
+        :param state: np.array of size (batch_size, state_shape)
+        :return: an np.array of shape of size (batch_size, N_ACTIONS) containing the policy for each state in the batch.
+        """
+        return self.network.get_policy(torch.from_numpy(state)).numpy()
 
     def _format_data(self, states, actions, rewards, next_state, end):
         t = len(states)
@@ -47,22 +52,6 @@ class ActorCriticAgent(BaseAgent):
                           "critic_target": value})] + data
 
         return data, end
-
-    def select_action(self, state, feasible_actions, greedy=False):
-        policy = self.net.get_policy(state.reshape(1, 7, 7, self.state_channels))
-        # add small epsilon to make sure one of the feasible actions is picked
-        policy[policy < 1.0e-7] = 1.0e-7
-        policy = mask_out(policy, feasible_actions, GRID)
-        policy = policy / np.sum(policy)  # renormalize
-        if greedy:
-            # max_indices = np.argwhere(policy == np.max(policy))
-            # ind = max_indices[np.random.randint(0,len(max_indices))][0]
-            ind = np.argmax(policy)
-        else:
-            ind = np.random.choice(range(len(policy)), p=policy)
-        # pos_id, move_id = divmod(ind,4)
-        # return pos_id, move_id
-        return ind
 
     def train(self, env, n_games, data_buffer, batch_size, n_workers, display_every, T_update_net):
         envs = np.array([deepcopy(env) for _ in range(n_games)])
@@ -114,37 +103,6 @@ class ActorCriticAgent(BaseAgent):
 
         pool.close()
         pool.join()
-
-    def play(self, env, greedy=False):
-        # play game with agent until the end
-        G = 0.0
-        discount = 1.0
-        end = False
-
-        if self.render:  # render the state of the board at the begining of the game
-            env.init_fig()
-            env.render()
-            sleep(1.5)
-
-        while not end:
-            action_index = self.select_action(env.state, env.feasible_actions, greedy=greedy)
-            action = divmod(action_index, 4)
-            if self.render:
-                env.render(action=action, show_action=True)  # render a first time displaying the action selected
-                sleep(0.8)
-            reward, _, end = env.step(action)
-            G += discount * reward
-            discount = discount * self.gamma
-            if self.render:
-                env.render()  # render a second time the state of the board after the action is played
-                sleep(0.6)
-
-        if self.render:
-            env.render()
-            sleep(2)
-            plt.close()
-
-        return (G, env.n_pegs)
 
     def evaluate(self, env, n_games, n_workers):
         # play n_games and store the final reward and number of pegs left for each game

@@ -42,7 +42,7 @@ def set_random_seeds(seed=42):
     torch.backends.cudnn.deterministic = True
 
 
-def read_yaml(path):
+def read_yaml(path: str) -> dict:
     with open(path, 'r') as stream:
         try:
             d = yaml.safe_load(stream)
