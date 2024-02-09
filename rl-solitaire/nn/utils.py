@@ -59,7 +59,7 @@ def get_optimizer(optimizer=None):
     elif isinstance(optimizer, torch.nn.Module):
         return optimizer
     else:
-        raise ValueError("optimizer argument must be of type None, str, or torch.nn.Module but was of type {}". \
+        raise ValueError("optimizer argument must be of type None, str, or torch.nn.Module but was of type {}".
                          format(type(optimizer)))
 
 
@@ -75,7 +75,7 @@ def get_loss(loss=None):
     elif isinstance(loss, torch.nn.Module):
         return loss
     else:
-        raise ValueError("loss argument must be of type None, str, or torch.nn.Module but was of type {}". \
+        raise ValueError("loss argument must be of type None, str, or torch.nn.Module but was of type {}".
                          format(type(loss)))
 
 

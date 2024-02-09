@@ -1,0 +1,39 @@
+name:
+  "BasePolicyValueNet"
+
+architecture:
+  embeddings:
+    input_dim: 147
+    hidden_dim: 128
+
+  policy_head:
+    hidden_dim: 128
+
+  value_head:
+    hidden_dim: 128
+
+activation:
+  name: "relu"
+
+loss:
+  actor_loss:
+    name: "cross_entropy"
+    reduction: "mean"
+    label_smoothing: 0.001
+    coef: 0.8
+  critic_loss:
+    name: "mse"
+    reduction: "mean"
+    coef: 0.1
+  regularization:
+    name: "entropy"
+    coef: 0.0005
+
+
+initializer:
+  name: "glorot_uniform"
+
+optimizer:
+  name: "sgd"
+  lr: 1.0e-4
+  weight_decay: 1.0e-6

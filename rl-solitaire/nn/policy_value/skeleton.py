@@ -11,17 +11,37 @@ DEFAULT_CRITIC_LOSS_DICT = {"name": "mse",
                             "reduction": "mean",
                             "coef": 1.0}
 
+DEFAULT_VALUE_HEAD_OUPUT_DIM = 1
+
 
 class BasePolicyValueNet(BaseNet):
     def __init__(self, config):
         super().__init__(config)
 
     def _build_model(self, architecture_config: dict):
+        architecture_config["policy_head"]["input_dim"] = architecture_config["embeddings"]["hidden_dim"]
+        architecture_config["value_head"]["input_dim"] = architecture_config["embeddings"]["hidden_dim"]
+        if ("output_dim" not in architecture_config["value_head"].keys()) or \
+           (architecture_config["value_head"]["output_dim"] is None):
+            architecture_config["value_head"]["output_dim"] = DEFAULT_VALUE_HEAD_OUPUT_DIM
+
+        self._build_state_embeddings(**architecture_config["embeddings"])
+        self._build_policy_head(**architecture_config["policy_head"])
+        self._build_value_head(**architecture_config["value_head"])
+
+    def _build_state_embeddings(self, **kwargs):
         self.state_embeddings = torch.nn.Module()
+
+    def _build_policy_head(self, **kwargs):
         self.policy_head = torch.nn.Module()
+
+    def _build_value_head(self, **kwargs):
         self.value_head = torch.nn.Module()
 
     def _set_loss(self, loss_config: dict):
+        # set regularization
+        self._set_regularization(loss_config)  # pops the key "regularization" from loss_config
+
         # actor loss = policy loss
         if "actor_loss" not in loss_config.keys():
             loss_config["actor_loss"] = DEFAULT_ACTOR_LOSS_DICT
@@ -49,7 +69,6 @@ class BasePolicyValueNet(BaseNet):
     def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         """
         Outputs the policies and values associated with a batch of states.
-        Given a tensor x representing a state or a batch of states of shape (n_batch, state_shape), produces the
         :param x: a torch.Tensor representing a state or a batch of states of shape (n_batch, state_shape).
         :return: (policies, values) of type (torch.Tensor, torch.Tensor) where policies is of shape (n_batch, N_ACTIONS)
         and values is oh shape (n_batch, 1).

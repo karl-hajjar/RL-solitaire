@@ -5,19 +5,21 @@ from .network_config import NetConfig
 from .utils import get_activation, get_initializer, get_loss, get_optimizer
 
 
-INIT_EXCLUDE_MODULES = {"norm"}
+INIT_EXCLUDE_MODULES = {"norm", "bias"}
 REGULARIZATION_KEYS = {"entropy", "kl"}
+
 
 class BaseNet(LightningModule):
     def __init__(self, config: NetConfig):
         super().__init__()
         self.hparams.update(config.to_dict())  # stores the hparams for later saving in the Lightning module
         self._set_name(config.name)
-        self._set_activation(**config.architecture_config["activation"])
+        self._set_activation(**config.activation_config)
         self._build_model(config.architecture_config)
-        self._set_initializer(**config.initializer_config)
+        self._set_initializer(config.initializer_config["name"])
+        config.initializer_config.pop("name")
         self._set_loss(config.loss_config)
-        self.initialize()
+        self.initialize(**config.initializer_config)
         self._set_optimizer(**config.optimizer_config)
 
     @property
@@ -34,9 +36,8 @@ class BaseNet(LightningModule):
     def _build_model(self, architecture_config: dict):
         pass
 
-    def _set_initializer(self, name: str = None, **kwargs):
-        initializer_class = get_initializer(name)
-        self.initializer = initializer_class(**kwargs)
+    def _set_initializer(self, name: str = None):
+        self.initializer_class = get_initializer(name)
 
     def _set_loss(self, loss_config: dict):
         self._set_regularization(loss_config)
@@ -85,16 +86,17 @@ class BaseNet(LightningModule):
         loss_class = get_loss(name)
         return loss_class(**loss_config)  # name has been popped, all other loss params are kwargs
 
-    def initialize(self):
+    def initialize(self, **kwargs):
         with torch.no_grad():
             for name, p in self.named_parameters():
                 # initialize param if it is not one of the excluded module names
                 if not any([module_name in name.lower() for module_name in INIT_EXCLUDE_MODULES]):
-                    self.initializer(p)
+                    self.initializer_class(p, **kwargs)
 
     def _set_optimizer(self, name: str = None, **kwargs):
-        optimizer_class = get_optimizer(name)
-        self.optimizer = optimizer_class(**kwargs)
+        if len(list(self.parameters())) > 0:
+            optimizer_class = get_optimizer(name)
+            self.optimizer = optimizer_class(self.parameters(), **kwargs)
 
     def configure_optimizers(self):
         return self.optimizer

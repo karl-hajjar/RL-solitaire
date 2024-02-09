@@ -1,4 +1,4 @@
-from ..utils.tools import read_yaml
+from utils.tools import read_yaml
 
 
 class NetConfig:
@@ -12,52 +12,39 @@ class NetConfig:
             else:
                 self.config_dict = kwargs
 
-        self._set_config_attributes()
+        self._set_config_attributes(**kwargs)
 
-    def _set_config_attributes(self):
+    def _set_config_attributes(self, **kwargs):
         if self.config_dict is None:
+            # TODO: set configs from **kwargs
             pass
         else:
             self._set_name()
-            self._set_architecture_config()
-            self._set_loss_config()
-            self._set_initializer_config()
-            self._set_optimizer_config()
+            self.activation_config = self._get_attribute_from_config("activation")
+            self.architecture_config = self._get_attribute_from_config("architecture")
+            self.loss_config = self._get_attribute_from_config("loss")
+            self.initializer_config = self._get_attribute_from_config("initializer")
+            self.optimizer_config = self._get_attribute_from_config("optimizer")
 
     def _set_name(self):
-        if "name" in self.config_dict:
-            self.name = self.config_dict["name"]
-        else:
+        if ("name" not in self.config_dict) or (self.config_dict["name"] is None):
             self.name = "Net"
-
-    def _set_architecture_config(self):
-        if "architecture" in self.config_dict:
-            self.architecture_config = self.config_dict["architecture"]
         else:
-            self.architecture_config = None
+            self.name = self.config_dict["name"]
 
-    def _set_loss_config(self):
-        if "loss" in self.config_dict:
-            self.loss_config = self.config_dict["loss"]
+    def _get_attribute_from_config(self, attribute_name: str):
+        if attribute_name in self.config_dict.keys():
+            return self.config_dict[attribute_name]
         else:
-            self.loss_config = None
+            return None
 
-    def _set_initializer_config(self):
-        if "initializer" in self.config_dict:
-            self.initializer_config = self.config_dict["initializer"]
-        else:
-            self.initializer_config = None
-
-    def _set_optimizer_config(self):
-        if "optimizer" in self.config_dict:
-            self.optimizer_config = self.config_dict["optimizer"]
-        else:
-            self.optimizer_config = None
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         res = dict()
         res["name"] = self.name
+        res["activation"] = self.activation_config
         res["architecture"] = self.architecture_config
         res["loss"] = self.loss_config
         res["initializer"] = self.initializer_config
         res["optimizer"] = self.optimizer_config
+
+        return res
