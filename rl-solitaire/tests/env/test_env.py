@@ -35,7 +35,8 @@ class TestEnv(unittest.TestCase):
         while not end:
             feasible_actions = env.feasible_actions
             test_feasible_actions_(env, feasible_actions)
-            action = random_agent.select_action(env.state, feasible_actions)
+            action_index = random_agent.select_action(env.state, feasible_actions)
+            action = env.convert_action_id_to_action(action_index)
             reward, next_state, end = env.step(action)
             cmpt += 1
 
