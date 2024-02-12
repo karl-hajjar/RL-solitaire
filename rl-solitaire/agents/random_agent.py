@@ -45,5 +45,4 @@ class RandomAgent(BaseAgent):
         '''
         # flatten the feasible actions to return the action index and not a tuple (pos_id, move_id)
         actions = np.argwhere(feasible_actions.reshape(-1)).reshape(-1)
-        # actions = np.where(feasible_actions.reshape(-1))
         return actions[np.random.randint(0, len(actions))]

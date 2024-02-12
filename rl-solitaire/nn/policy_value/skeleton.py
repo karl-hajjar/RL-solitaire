@@ -66,6 +66,12 @@ class BasePolicyValueNet(BaseNet):
         loss_config["critic_loss"].pop("coef")
         self.critic_loss = self._get_loss(loss_config["critic_loss"])
 
+    def get_policy(self, x: torch.Tensor):
+        return self.policy_head(self.state_embeddings(x))
+
+    def get_value(self, x: torch.Tensor):
+        return self.value_head(self.state_embeddings(x))
+
     def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         """
         Outputs the policies and values associated with a batch of states.
@@ -116,23 +122,29 @@ class BasePolicyValueNet(BaseNet):
         self.log('train/critic_loss', critic_loss.detach().item())
         self.log('train/weighted_actor_loss', weighted_actor_loss.detach().item())
         self.log('train/weighted_critic_loss', weighted_critic_loss.detach().item())
-        self.log('train/loss', loss.detach().item(), prog_bar=True, logger=True, on_step=True)
+        self.log('train/loss', loss.detach().item(), prog_bar=True, on_step=True)
+
+        # compute uniform distribution over feasible actions for later logging / KL-penalty computation
+        with torch.no_grad():
+            feasible_actions_uniform_dist = action_masks / torch.sum(action_masks, dim=-1, keepdim=True)
 
         if self.regularization:
             if self.regularization_type == "entropy":
-                with torch.no_grad():
-                    feasible_actions_uniform_dist = action_masks / torch.sum(action_masks, dim=-1, keepdim=True)
-                regularized_loss = loss + \
-                                   self.regularization_coef * self.regularization_loss(logits,
-                                                                                       feasible_actions_uniform_dist)
-                self.log('train/regularized_loss', regularized_loss.detach().item(), prog_bar=True, logger=True,
-                         on_step=True)
+                kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
+                regularized_loss = loss + self.regularization_coef * kl_div_uniform
+                self.log('train/regularized_loss', regularized_loss.detach().item(), prog_bar=True, on_step=True)
             else:
                 # TODO : implement KLDiv Loss wrt to reference policy later
                 regularized_loss = loss
+                with torch.no_grad():
+                    kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
 
         else:
             regularized_loss = loss
+            with torch.no_grad():
+                kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
+
+        self.log('train/kl_div_uniform', kl_div_uniform.detach().item(), on_step=True)
 
         # see https://stackoverflow.com/questions/37304461/tensorflow-importing-data-from-a-tensorboard-tfevent-file to
         # read from TensorBoard events file
@@ -141,5 +153,6 @@ class BasePolicyValueNet(BaseNet):
         return regularized_loss
 
     def validation_step(self, batch, batch_nb):
+        # TODO: the validation_step might need to be removed altogether (no overriding of the base method).
         pass
 

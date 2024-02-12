@@ -18,6 +18,9 @@ class BaseAgent:
     def name(self) -> str:
         return self._name
 
+    def set_evaluation_mode(self):
+        pass
+
     def play(self, env, render=False) -> (float, int):
         """
         A method to interact with the environment until a terminal state is reached.
@@ -54,57 +57,67 @@ class BaseAgent:
 
         return total_return, env.n_pegs
 
-    def select_action(self, state: np.array, feasible_actions: np.array, greedy=False) -> int:
+    def select_action(self, state: np.ndarray, feasible_actions: np.ndarray, greedy=False) -> int:
         """
         Returns the selected action given the state and the feasible actions in this state.
-        :param state: 3d np.array of shape (7, 7, N_STATE_CHANNELS).
-        :param feasible_actions: 2d np.array of shape (len(GRID), len(MOVES)).
+        :param state: 3d np.ndarray of shape (7, 7, N_STATE_CHANNELS).
+        :param feasible_actions: 2d np.ndarray of shape (len(GRID), len(MOVES)).
         :param greedy: a boolean determining if action is sampled wrt to policy probabilities or selected greedily as
         the argmax of the policy.
         :return: an int representing the index in (0, ..., N_ACTIONS-1) of the selected action.
         """
-        policy = self.get_policy(state)
+        # Reshape state as get_policy expects a batch of states, and then return only the first policy of the batch
+        policy = self.get_policy(state[np.newaxis, :])[0]
         # add small epsilon to make sure one of the feasible actions is picked (avoid issues with numerical errors)
         policy[policy < MIN_ACTION_PROBA] = MIN_ACTION_PROBA
-        policy = mask_infeasible_actions(policy, feasible_actions)  # action probas are re-normalized by default
+        # feasible action probas are re-normalized by default
+        policy = mask_infeasible_actions(policy, feasible_actions.reshape(-1))
         if greedy:
             action_index = np.argmax(policy)
         else:
             action_index = np.random.choice(range(len(policy)), p=policy)
         return action_index
 
-    def collect_data(self, env, T) -> (list, bool):
+    def collect_data(self, env, T) -> dict[str, np.ndarray]:
         if T <= 0:
             raise ValueError(f"T must be >= 1 but was {T}")
         t = 0
         end = False
         states = []
         actions = []
+        action_masks = []
         rewards = []
         next_state = env.state
 
         while t < T and not end:
             state = env.state
             states.append(state)
-            action_index = self.select_action(state, env.feasible_actions)
+
+            feasible_actions = env.feasible_actions
+            action_mask = np.argwhere(feasible_actions.reshape(-1)).reshape(-1).astype(int)
+            action_masks.append(action_mask)
+
+            action_index = self.select_action(state, feasible_actions)
             action = env.convert_action_id_to_action(action_index)
+
             reward, next_state, end = env.step(action)
             actions.append(action_index)
             rewards.append(reward)
             t += 1
 
-        return self._format_data(states, actions, rewards, next_state, end), end
+        return self._format_data(states, actions, action_masks, rewards, next_state, end)
 
-    def _format_data(self, states, actions, rewards, next_state, end):
-        t = len(states)
-        assert (t == len(actions) == len(rewards))
-        data = [{"state": states[s],
-                 "action": actions[s],
-                 "reward": rewards[s]} for s in range(t)]
-        return data
+    def _format_data(self, states, actions, action_masks, rewards, next_state, end) -> dict[str, np.ndarray]:
+        assert (len(states) == len(actions) == len(rewards))
+        return {"states": np.array(states), "actions": np.array(actions), "rewards": np.array(rewards)}
 
-    def get_policy(self, state: np.array):
-        pass
+    def get_policy(self, states: np.ndarray) -> np.ndarray:
+        """
+        Returns the policies for a given batch of states.
+        :param states: np.ndarray of shape (batch_size, state_shape)
+        :return: np.ndarray of size (batch_size, N_ACTIONS) containing the policies of each state in the batch.
+        """
+        return np.array([])
 
     def evaluate(self, env, n_games=1) -> (list[float], list[float]):
         rewards = []

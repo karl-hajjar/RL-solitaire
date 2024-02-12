@@ -52,6 +52,12 @@ class FCPolicyValueNet(BasePolicyValueNet):
         self.value_head.add_module(name="output",
                                    module=torch.nn.Linear(in_features=hidden_dim, out_features=output_dim, bias=bias))
 
+    def get_policy(self, x: torch.Tensor):
+        return self.policy_head(self.state_embeddings(torch.flatten(x, start_dim=1, end_dim=-1)))
+
+    def get_value(self, x: torch.Tensor):
+        return self.value_head(self.state_embeddings(torch.flatten(x, start_dim=1, end_dim=-1)))
+
     def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         """
         Outputs the policies and values associated with a batch of states. The states are flattened along non-batch

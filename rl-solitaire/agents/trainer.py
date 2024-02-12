@@ -2,6 +2,8 @@ from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 import logging
 import numpy as np
+import torch
+import pickle
 
 from .base_agent import BaseAgent
 from env.env import Env
@@ -15,7 +17,7 @@ class BaseTrainer:
     Implementing a trainer class for training RL agents.
     """
     def __init__(self, env: Env, agent: BaseAgent, n_iter: int, n_games_train: int, n_steps_update: int,
-                 log_every: int = None, n_games_eval: int = 10):
+                 agent_results_filepath: str, log_every: int = None, n_games_eval: int = 10):
         self.env = env
         self.agent = agent
         self.n_iter = n_iter
@@ -25,6 +27,7 @@ class BaseTrainer:
         self.n_games_eval = n_games_eval
         self._name = "BaseTrainer"
         self.current_iteration = 0
+        self.agent_results_file = open(agent_results_filepath, "wb+")  # open log file to write in during evaluation
 
     @property
     def name(self):
@@ -35,39 +38,53 @@ class BaseTrainer:
             for i in tqdm(range(self.n_iter)):
                 self.current_iteration = i
                 # prepare data
-                data = self.collect_data(self.agent, self.env, self.n_games_train, self.n_steps_update)
-                dataset = self.prepare_dataset(data)
-                dataloader = self.prepare_dataloader(dataset)
+                with torch.no_grad():
+                    self.agent.set_evaluation_mode()
+                    data = self.collect_data(self.agent, self.env, self.n_games_train, self.n_steps_update)
+                    dataset = self.prepare_dataset(data)
+                    dataloader = self.prepare_dataloader(dataset)
 
                 # update agent with collected gameplay interactions with the environment
-                self.update(self.agent, dataloader)
+                self.update_agent(self.agent, dataloader)
 
                 # evaluate current agent and logs the results
-                self.evaluate_agent(self.agent, self.env, self.n_games_eval)
+                with torch.no_grad():
+                    self.evaluate_agent(self.agent, self.env, self.n_games_eval)
 
-    def collect_data(self, agent, env, n_games_train, n_steps_update):
-        data = []
-        for _ in range(n_games_train):
+    def collect_data(self, agent, env, n_games_train, n_steps_update) -> dict:
+        # play once to get the keys from agent.collect_data
+        env.reset()
+        data0 = agent.collect_data(env, T=n_steps_update)
+        data = {key: [] for key in data0.keys()}
+
+        for _ in range(n_games_train - 1):
             env.reset()
-            data += agent.collect_data(env, T=n_steps_update)
+            data_ = agent.collect_data(env, T=n_steps_update)
+            for key in data.keys():
+                data[key].append(data_.key())
+
+        for key in data.keys():
+            data[key] = np.concatenate(data[key], axis=0)
         return data
 
-    def prepare_dataset(self, data):
+    def prepare_dataset(self, data: dict[np.array]):
         data = self.reformat_data(data)
         return data
 
     def prepare_dataloader(self, dataset):
         return dataset
 
-    def reformat_data(self, data):
+    def reformat_data(self, data: dict):
         return data
 
-    def update(self, agent, dataloader):
+    def update_agent(self, agent, dataloader):
         pass
 
     def evaluate_agent(self, agent, env, n_games_eval):
+        agent.set_evaluation_mode()
         rewards, pegs_left = agent.evaluate(env, n_games_eval)
         self.log_evaluation_results(rewards, pegs_left)
+        pickle.dump({"rewards": rewards, "pegs_left": pegs_left}, self.agent_results_file)
 
     def log_evaluation_results(self, rewards, pegs_left):
         mean_reward = np.mean(rewards)
@@ -76,6 +93,3 @@ class BaseTrainer:
             logger.info("Iteration {:,}: mean reward: {:.3f}, mean pegs left: {:.2f}".format(self.current_iteration,
                                                                                              mean_reward,
                                                                                              mean_pegs_left))
-
-
-
