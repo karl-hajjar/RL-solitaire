@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import yaml
 import pickle
+from datetime import datetime
 
 
 def set_up_logger(path: str):
@@ -74,3 +75,14 @@ def load_pickle(path, single=False):
                 except EOFError:
                     break
     return results
+
+
+def strp_datetime(date: datetime) -> str:
+    """
+    Transforms a datetime object like 'Year-Month-Day hour:minute:second:microsecond' into a string
+    'Year_Month_Day-hour_minute'.
+    :param date: datetime object
+    :return: reformatted string date
+    """
+    split_date_seconds = str(date).split(':')[:-1]
+    return '_'.join(split_date_seconds).replace('-', '_').replace(' ', '-')
