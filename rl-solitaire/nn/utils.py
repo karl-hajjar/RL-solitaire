@@ -93,3 +93,22 @@ def get_initializer(initializer=None):
     else:
         raise ValueError("optimizer argument must be of type None, str, or torch.nn.Module but was of type {}". \
                          format(type(initializer)))
+
+
+def compute_entropies_from_logits(logits: torch.Tensor, mask: torch.Tensor = None) -> (torch.Tensor, torch.Tensor):
+    """
+    Computes and returns the full entropy from the logits as well as the entropy with only the non-masked classes if
+    mask is not None.
+    :param logits: input tensor of shape (batch_size, n_classes) where each row contain the logits of the corresponding
+    sample
+    :param mask: a tensor of shape (batch_size, n_classes) with elements in {0, 1} representing the classes to mask when
+    computing the entropy. If it is None then only the full entropy is computed.
+    :return:
+    """
+    log_probas = torch.nn.functional.log_softmax(logits, dim=1)
+    probas = torch.nn.functional.log_softmax(logits, dim=1)
+    p_log_p = probas * log_probas
+    if mask is None:
+        return torch.sum(p_log_p, dim=1), torch.Tensor([])
+    else:
+        return torch.sum(p_log_p, dim=1), torch.sum(mask * p_log_p, dim=1)

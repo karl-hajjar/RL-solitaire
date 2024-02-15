@@ -81,6 +81,7 @@ OUT_OF_BORDER_ACTIONS = _compute_out_of_border_actions(GRID)
 
 class Env(object):
     """A class implementing the solitaire environment"""
+    N_MAX_STEPS = N_PEGS
 
     def __init__(self, verbose=False, init_fig=False, interactive_plot=False):
         '''
@@ -176,6 +177,7 @@ class Env(object):
             if np.sum(self.feasible_actions) == 0:  # no more actions available
                 if self.verbose:
                     print('End of the game. You lost : {} pegs remaining'.format(self.n_pegs))
+                # return 0., self.state, True  # return 0.0 reward if the game stops but we haven't finished it
                 return 1 / (N_PEGS - 1), self.state, True
             else:
                 # reward is an increasing function of the percentage of the game achieved

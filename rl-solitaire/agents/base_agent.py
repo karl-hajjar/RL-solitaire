@@ -78,9 +78,15 @@ class BaseAgent:
             action_index = np.random.choice(range(len(policy)), p=policy)
         return action_index
 
-    def collect_data(self, env, T) -> dict[str, np.ndarray]:
-        if T <= 0:
-            raise ValueError(f"T must be >= 1 but was {T}")
+    def collect_data(self, env, T=None) -> dict[str, np.ndarray]:
+        states, actions, action_masks, rewards, next_state, end = self.collect_data_(env, T=None)
+        return self._format_data(states, actions, action_masks, rewards, next_state, end)
+
+    def collect_data_(self, env, T=None) -> (list[np.ndarray], list[int], list[float], list[float], np.ndarray, bool):
+        if T is None:
+            T = env.N_MAX_STEPS
+        elif T <= 0:
+            raise ValueError(f"If T is not None, T must be >= 1 but was {T}")
         t = 0
         end = False
         states = []
@@ -94,7 +100,9 @@ class BaseAgent:
             states.append(state)
 
             feasible_actions = env.feasible_actions
-            action_mask = np.argwhere(feasible_actions.reshape(-1)).reshape(-1).astype(int)
+            action_mask = mask_infeasible_actions(np.ones_like(feasible_actions.reshape(-1)),
+                                                  feasible_actions.reshape(-1),
+                                                  normalize=False).astype(float)
             action_masks.append(action_mask)
 
             action_index = self.select_action(state, feasible_actions)
@@ -105,11 +113,13 @@ class BaseAgent:
             rewards.append(reward)
             t += 1
 
-        return self._format_data(states, actions, action_masks, rewards, next_state, end)
+        return states, actions, action_masks, rewards, next_state, end
 
     def _format_data(self, states, actions, action_masks, rewards, next_state, end) -> dict[str, np.ndarray]:
         assert (len(states) == len(actions) == len(rewards))
-        return {"states": np.array(states), "actions": np.array(actions), "rewards": np.array(rewards)}
+        return {"states": np.array(states),
+                "actions": np.array(actions).astype(np.float32),
+                "rewards": np.array(rewards).astype(np.float32)}
 
     def get_policy(self, states: np.ndarray) -> np.ndarray:
         """

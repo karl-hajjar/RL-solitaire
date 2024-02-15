@@ -54,6 +54,6 @@ class ActorCriticAgent(BaseAgent):
 
         return {"states": states,
                 "actions": np.array(actions),
-                "action_masks": np.array(action_masks),
-                "advantages": np.array(reversed_advantages[::-1]),
-                "value_targets": np.array(reversed_value_targets[::-1])}
+                "action_masks": np.array(action_masks).astype(np.float32),
+                "advantages": np.array(reversed_advantages[::-1]).reshape(-1, 1).astype(np.float32),
+                "value_targets": np.array(reversed_value_targets[::-1]).reshape(-1, 1).astype(np.float32)}

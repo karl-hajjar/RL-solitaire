@@ -52,10 +52,12 @@ class FCPolicyValueNet(BasePolicyValueNet):
         self.value_head.add_module(name="output",
                                    module=torch.nn.Linear(in_features=hidden_dim, out_features=output_dim, bias=bias))
 
-    def get_policy(self, x: torch.Tensor):
+    def get_policy(self, x: torch.Tensor) -> torch.Tensor:
         return self.policy_head(self.state_embeddings(torch.flatten(x, start_dim=1, end_dim=-1)))
 
-    def get_value(self, x: torch.Tensor):
+    def get_value(self, x: torch.Tensor) -> torch.Tensor:
+        # 2 * torch.nn.functional.sigmoid((self.value_head(
+        # self.state_embeddings(torch.flatten(x, start_dim=1, end_dim=-1)))))
         return self.value_head(self.state_embeddings(torch.flatten(x, start_dim=1, end_dim=-1)))
 
     def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
@@ -68,4 +70,5 @@ class FCPolicyValueNet(BasePolicyValueNet):
         """
         x = torch.flatten(x, start_dim=1, end_dim=-1)
         x = self.state_embeddings(x)
+        # return self.policy_head(x), 2 * torch.nn.functional.sigmoid()(value_head(x))
         return self.policy_head(x), self.value_head(x)

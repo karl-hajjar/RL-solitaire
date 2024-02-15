@@ -16,8 +16,8 @@ class BaseTrainer:
     """
     Implementing a trainer class for training RL agents.
     """
-    def __init__(self, env: Env, agent: BaseAgent, n_iter: int, n_games_train: int, n_steps_update: int,
-                 agent_results_filepath: str, log_every: int = None, n_games_eval: int = 10):
+    def __init__(self, env: Env, agent: BaseAgent, n_iter: int, n_games_train: int, agent_results_filepath: str,
+                 n_steps_update: int = None, log_every: int = None, n_games_eval: int = 10):
         self.env = env
         self.agent = agent
         self.n_iter = n_iter
@@ -40,28 +40,30 @@ class BaseTrainer:
                 # prepare data
                 with torch.no_grad():
                     self.agent.set_evaluation_mode()
-                    data = self.collect_data(self.agent, self.env, self.n_games_train, self.n_steps_update)
+                    data = self.collect_data()
                     dataset = self.prepare_dataset(data)
                     dataloader = self.prepare_dataloader(dataset)
 
                 # update agent with collected gameplay interactions with the environment
-                self.update_agent(self.agent, dataloader)
+                self.update_agent(dataloader)
 
                 # evaluate current agent and logs the results
                 with torch.no_grad():
-                    self.evaluate_agent(self.agent, self.env, self.n_games_eval)
+                    self.evaluate_agent()
 
-    def collect_data(self, agent, env, n_games_train, n_steps_update) -> dict:
+            self.agent_results_file.close()
+
+    def collect_data(self) -> dict[str, np.ndarray]:
         # play once to get the keys from agent.collect_data
-        env.reset()
-        data0 = agent.collect_data(env, T=n_steps_update)
+        self.env.reset()
+        data0 = self.agent.collect_data(self.env, T=self.n_steps_update)
         data = {key: [] for key in data0.keys()}
 
-        for _ in range(n_games_train - 1):
-            env.reset()
-            data_ = agent.collect_data(env, T=n_steps_update)
+        for _ in range(self.n_games_train - 1):
+            self.env.reset()
+            data_ = self.agent.collect_data(self.env, T=self.n_steps_update)
             for key in data.keys():
-                data[key].append(data_.key())
+                data[key].append(data_[key])
 
         for key in data.keys():
             data[key] = np.concatenate(data[key], axis=0)
@@ -77,12 +79,12 @@ class BaseTrainer:
     def reformat_data(self, data: dict):
         return data
 
-    def update_agent(self, agent, dataloader):
+    def update_agent(self, dataloader):
         pass
 
-    def evaluate_agent(self, agent, env, n_games_eval):
-        agent.set_evaluation_mode()
-        rewards, pegs_left = agent.evaluate(env, n_games_eval)
+    def evaluate_agent(self):
+        self.agent.set_evaluation_mode()
+        rewards, pegs_left = self.agent.evaluate(self.env, self.n_games_eval)
         self.log_evaluation_results(rewards, pegs_left)
         pickle.dump({"rewards": rewards, "pegs_left": pegs_left}, self.agent_results_file)
 

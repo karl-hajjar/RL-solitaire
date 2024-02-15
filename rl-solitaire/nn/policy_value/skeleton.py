@@ -1,7 +1,7 @@
 import torch
 
 from ..base_net import BaseNet
-from ..utils import get_loss
+from ..utils import get_loss, compute_entropies_from_logits
 
 
 DEFAULT_ACTOR_LOSS_DICT = {"name": "cross_entropy",
@@ -111,18 +111,15 @@ class BasePolicyValueNet(BaseNet):
         :param batch_nb: int, the index of the current batch
         :return: dict with the training metrics.
         """
-        states, action_indices, value_targets, action_masks = batch
+        states, action_indices, action_masks, advantages, value_targets = batch
         logits, values = self.forward(states)
+
         actor_loss = self.actor_loss(logits, action_indices)
+        advantage_actor_loss = torch.mean(advantages * actor_loss)
         critic_loss = self.critic_loss(values, value_targets)
-        weighted_actor_loss = self.actor_coef * actor_loss
+        weighted_actor_loss = self.actor_coef * advantage_actor_loss
         weighted_critic_loss = self.critic_coef * critic_loss
         loss = weighted_actor_loss + weighted_critic_loss
-        self.log('train/actor_loss', actor_loss.detach().item())
-        self.log('train/critic_loss', critic_loss.detach().item())
-        self.log('train/weighted_actor_loss', weighted_actor_loss.detach().item())
-        self.log('train/weighted_critic_loss', weighted_critic_loss.detach().item())
-        self.log('train/loss', loss.detach().item(), prog_bar=True, on_step=True)
 
         # compute uniform distribution over feasible actions for later logging / KL-penalty computation
         with torch.no_grad():
@@ -132,7 +129,8 @@ class BasePolicyValueNet(BaseNet):
             if self.regularization_type == "entropy":
                 kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
                 regularized_loss = loss + self.regularization_coef * kl_div_uniform
-                self.log('train/regularized_loss', regularized_loss.detach().item(), prog_bar=True, on_step=True)
+                self.log('train/regularized_loss', regularized_loss.detach().item(),
+                         prog_bar=True, on_step=True, logger=True)
             else:
                 # TODO : implement KLDiv Loss wrt to reference policy later
                 regularized_loss = loss
@@ -144,7 +142,21 @@ class BasePolicyValueNet(BaseNet):
             with torch.no_grad():
                 kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
 
-        self.log('train/kl_div_uniform', kl_div_uniform.detach().item(), on_step=True)
+        self.log('train/loss', loss.detach().item(), prog_bar=True, on_step=True)
+
+        # entropies and policy diversity
+        with torch.no_grad():
+            full_entropy, masked_entropy = compute_entropies_from_logits(logits=logits, mask=action_masks)
+            self.log('train/full_entropy', torch.mean(full_entropy).detach().item(), logger=True)
+            self.log('train/masked_entropy', torch.mean(masked_entropy).detach().item(), logger=True)
+            self.log('train/kl_div_uniform', kl_div_uniform.detach().item(), on_step=True, logger=True)
+
+        # auxiliary loss metrics
+        self.log('train/actor_loss', torch.mean(actor_loss).detach().item(), logger=True)
+        self.log('train/advantage_actor_loss', advantage_actor_loss.detach().item(), logger=True)
+        self.log('train/critic_loss', critic_loss.detach().item(), logger=True)
+        self.log('train/weighted_actor_loss', weighted_actor_loss.detach().item(), logger=True)
+        self.log('train/weighted_critic_loss', weighted_critic_loss.detach().item(), logger=True)
 
         # see https://stackoverflow.com/questions/37304461/tensorflow-importing-data-from-a-tensorboard-tfevent-file to
         # read from TensorBoard events file

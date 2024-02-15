@@ -12,7 +12,6 @@ REGULARIZATION_KEYS = {"entropy", "kl"}
 class BaseNet(LightningModule):
     def __init__(self, config: NetConfig):
         super().__init__()
-        self.hparams.update(config.to_dict())  # stores the hparams for later saving in the Lightning module
         self._set_name(config.name)
         self._set_activation(**config.activation_config)
         self._build_model(config.architecture_config)
@@ -21,6 +20,9 @@ class BaseNet(LightningModule):
         self._set_loss(config.loss_config)
         self.initialize(**config.initializer_config)
         self._set_optimizer(**config.optimizer_config)
+
+        self.save_hyperparameters(config.to_dict())  # stores the hparams for later saving in the Lightning module
+        # self.save_hyperparameters()  # stores the hparams for later saving in the Lightning module
 
     @property
     def name(self):
