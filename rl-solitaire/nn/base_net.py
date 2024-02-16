@@ -69,7 +69,8 @@ class BaseNet(LightningModule):
                         loss_config["regularization"].pop("coef")  # remove "coef" from the regularization keys
                         # Regularization loss is a KLDivergence in any case, depending on the teg type different
                         # arguments will be fed to it
-                        self.regularization_loss = torch.nn.KLDivLoss(reduction="batchmean", log_target=True)
+                        # self.regularization_loss = torch.nn.KLDivLoss(reduction="batchmean", log_target=True)
+                        self.regularization_loss = torch.nn.KLDivLoss(reduction="batchmean", log_target=False)
 
             loss_config.pop("regularization")  # remove "regularization" from the loss_config keys
         else:

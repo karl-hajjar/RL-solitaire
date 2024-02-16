@@ -127,7 +127,8 @@ class BasePolicyValueNet(BaseNet):
 
         if self.regularization:
             if self.regularization_type == "entropy":
-                kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
+                kl_div_uniform = self.regularization_loss(torch.nn.functional.log_softmax(logits, dim=-1),
+                                                          feasible_actions_uniform_dist)
                 regularized_loss = loss + self.regularization_coef * kl_div_uniform
                 self.log('train/regularized_loss', regularized_loss.detach().item(),
                          prog_bar=True, on_step=True, logger=True)
@@ -135,12 +136,20 @@ class BasePolicyValueNet(BaseNet):
                 # TODO : implement KLDiv Loss wrt to reference policy later
                 regularized_loss = loss
                 with torch.no_grad():
-                    kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
+                    kl_div_uniform = torch.nn.functional.kl_div(
+                        torch.nn.functional.log_softmax(logits),
+                        feasible_actions_uniform_dist,
+                        reduction="batchmean",
+                        log_target=False)
 
         else:
             regularized_loss = loss
             with torch.no_grad():
-                kl_div_uniform = self.regularization_loss(logits, feasible_actions_uniform_dist)
+                kl_div_uniform = kl_div_uniform = torch.nn.functional.kl_div(
+                    torch.nn.functional.log_softmax(logits),
+                    feasible_actions_uniform_dist,
+                    reduction="batchmean",
+                    log_target=False)
 
         self.log('train/loss', loss.detach().item(), prog_bar=True, on_step=True)
 
