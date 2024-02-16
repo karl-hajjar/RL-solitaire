@@ -5,13 +5,13 @@ architecture:
   embeddings:
     input_dim: 147 # 7*7*3
     hidden_dim: 256
-    n_layers: 2
+    n_layers: 3
     bias: True
 
   policy_head:
     hidden_dim: 256
     output_dim: 132  #  N_ACTIONS = 33*4 = 132
-    n_layers: 3 # 4
+    n_layers: 4 # 4
     bias: True
 
   value_head:
@@ -43,5 +43,5 @@ initializer:
 
 optimizer:
   name: "adam"
-  lr: 2.0e-5  # 2e-5
+  lr: 5.0e-5  # 2e-5
   weight_decay: 1.0e-6

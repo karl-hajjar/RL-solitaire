@@ -87,7 +87,7 @@ class ActorCriticTrainer(BaseTrainer):
             return TensorBoardLogger(save_dir=log_dir)
         elif name == "neptune":
             run_name = log_dir.split('/')[-1]
-            return NeptuneLogger(api_key=NEPTUNE_API_KEY, project=NEPTUNE_PROJECT_NAME, name=run_name)
+            return NeptuneLogger(project=NEPTUNE_PROJECT_NAME, name=run_name)
         elif name == "wandb":
             raise NotImplementedError(f"Logger wandb is not implemented yet.")
         else:
