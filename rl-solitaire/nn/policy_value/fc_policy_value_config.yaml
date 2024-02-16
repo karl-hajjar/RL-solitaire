@@ -43,5 +43,5 @@ initializer:
 
 optimizer:
   name: "adam"
-  lr: 2.0e-5  # 1e-5
+  lr: 2.0e-5  # 2e-5
   weight_decay: 1.0e-6

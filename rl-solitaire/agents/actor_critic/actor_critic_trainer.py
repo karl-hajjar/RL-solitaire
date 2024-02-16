@@ -4,14 +4,17 @@ import numpy as np
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, NeptuneLogger
 from torch.utils.data import Dataset, DataLoader
 
 from agents.actor_critic.actor_critic_agent import ActorCriticAgent
-from agents.trainer import BaseTrainer
+from agents.trainer import BaseTrainer, NEPTUNE_API_KEY, NEPTUNE_PROJECT_NAME
 from env.env import Env
 
 logger = logging.getLogger()
+
+
+SUPPORTED_LOGGER_NAMES = {"tensorboard", "neptune", "wandb"}
 
 
 class ActorCriticDataset(Dataset):
@@ -46,32 +49,50 @@ class ActorCriticTrainer(BaseTrainer):
         self._name = "ActorCriticTrainer"
         self.batch_size = batch_size
         self.checkpoints_dir = checkpoints_dir
-        tb_logger = TensorBoardLogger(save_dir=log_dir)
-        # save agent network at the end of each training loop (call to trainer.fit())
+
+        # Pytorch lightning logger
+        pl_logger = self.get_pl_logger(name="neptune", log_dir=log_dir)
+
+        # Checkpoints callback
         checkpoint_callback = ModelCheckpoint(dirpath=checkpoints_dir,
-                                              filename='{epoch}_{step}_{train_loss:.4f}',
-                                              # save_on_train_epoch_end=True,
-                                              every_n_train_steps=300,
+                                              filename='{epoch}_{step}',
+                                              every_n_train_steps=100,
                                               verbose=True)
         self.n_optim_steps = n_optim_steps
         if n_optim_steps is None:
             self.n_epochs = 0
-            # self.n_epochs = 1
             self.max_steps = -1
         else:
             self.n_epochs = None
-            # self.max_steps = n_optim_steps
             self.max_steps = 0
         # PL trainer with automatic validation disabled: limit_val_batches=0.0, because "validation" is performed
         # manually in the agent evaluation
         self.trainer = Trainer(max_epochs=self.n_epochs,
                                max_steps=self.max_steps,
                                limit_val_batches=0.0,
-                               logger=tb_logger,
+                               logger=pl_logger,
                                callbacks=checkpoint_callback,
                                log_every_n_steps=1,  # 10
                                deterministic=True,
                                num_sanity_val_steps=0)
+
+    def get_pl_logger(self, name: str, log_dir: str):
+        """
+        Returns one of TensorBoardLogger, NeptuneLogger, WandbLogger.
+        :param name: string representing the name of the logger. Should be in {'tensorboard', 'neptune', 'wandb'}
+        :param log_dir: string representing the directory to save the logs on the disk
+        :return: the corresponding logger
+        """
+        if name == "tensorboard":
+            return TensorBoardLogger(save_dir=log_dir)
+        elif name == "neptune":
+            run_name = log_dir.split('/')[-1]
+            return NeptuneLogger(api_key=NEPTUNE_API_KEY, project=NEPTUNE_PROJECT_NAME, name=run_name)
+        elif name == "wandb":
+            raise NotImplementedError(f"Logger wandb is not implemented yet.")
+        else:
+            raise ValueError(f"Logger with name {name} is not supported. Supported logger names are : "
+                             f"{SUPPORTED_LOGGER_NAMES}")
 
     def prepare_dataset(self, data: dict[str, np.array]) -> ActorCriticDataset:
         data = self.reformat_data(data)
@@ -121,4 +142,4 @@ class ActorCriticTrainer(BaseTrainer):
     def save_agent(self):
         self.trainer.save_checkpoint(
             os.path.join(self.checkpoints_dir,
-                         f'{self.agent.network.current_epoch}_{self.agent.network.global_step}_last'))
+                         f'epoch={self.agent.network.current_epoch}_step={self.agent.network.global_step}'))

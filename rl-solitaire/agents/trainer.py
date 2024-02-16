@@ -9,6 +9,9 @@ from .base_agent import BaseAgent
 from env.env import Env
 
 
+NEPTUNE_API_KEY = "RLSOL"
+NEPTUNE_PROJECT_NAME = "karl-hajjar/RL-solitaire"
+
 logger = logging.getLogger()
 
 
@@ -46,12 +49,13 @@ class BaseTrainer:
 
                 # update agent with collected gameplay interactions with the environment
                 self.update_agent(dataloader)
+                if self.current_iteration % 300 == 0:
+                    self.save_agent()
 
                 # evaluate current agent and logs the results
                 with torch.no_grad():
                     self.evaluate_agent()
 
-            # TODO : save last agent
             self.save_agent()
             self.agent_results_file.close()
 
