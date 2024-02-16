@@ -1,4 +1,5 @@
 import logging
+import os
 import numpy as np
 import torch
 from pytorch_lightning import Trainer
@@ -44,11 +45,13 @@ class ActorCriticTrainer(BaseTrainer):
         # TODO: create a config class for trainers
         self._name = "ActorCriticTrainer"
         self.batch_size = batch_size
+        self.checkpoints_dir = checkpoints_dir
         tb_logger = TensorBoardLogger(save_dir=log_dir)
         # save agent network at the end of each training loop (call to trainer.fit())
         checkpoint_callback = ModelCheckpoint(dirpath=checkpoints_dir,
                                               filename='{epoch}_{step}_{train_loss:.4f}',
-                                              save_on_train_epoch_end=True,
+                                              # save_on_train_epoch_end=True,
+                                              every_n_train_steps=300,
                                               verbose=True)
         self.n_optim_steps = n_optim_steps
         if n_optim_steps is None:
@@ -94,22 +97,28 @@ class ActorCriticTrainer(BaseTrainer):
         self._set_trainer_epochs_steps()
         self.trainer.fit(model=self.agent.network, train_dataloaders=dataloader)
 
-    def log_evaluation_results(self, rewards, pegs_left):
+    def log_evaluation_results(self, rewards, pegs_left, greedy_reward, greedy_pegs_left):
         mean_reward = np.mean(rewards)
         mean_pegs_left = np.mean(pegs_left)
+        min_pegs_left = np.min(pegs_left)
+        max_pegs_left = np.max(pegs_left)
+        median_pegs_left = np.median(pegs_left)
         if (self.log_every is not None) and (self.current_iteration % self.log_every == 0):
             logger.info("Iteration {:,}: mean reward: {:.3f}, mean pegs left: {:.2f}".format(self.current_iteration,
                                                                                              mean_reward,
                                                                                              mean_pegs_left))
-        # TODO : try doing self.trainer.logger.log()...
-        # TODO : there is an issue with the hparams of thde PL module
         self.trainer.logger.log_metrics(metrics={'eval/mean_reward': mean_reward,
                                                  'eval/mean_pegs_left': mean_pegs_left,
+                                                 'eval/min_pegs_left': min_pegs_left,
+                                                 'eval/max_pegs_left': max_pegs_left,
+                                                 'eval/median_pegs_left': median_pegs_left,
+                                                 'eval/greedy_reward': greedy_reward,
+                                                 'eval/greedy_pegs_left': greedy_pegs_left,
                                                  'eval/n_train_epochs': self.agent.network.current_epoch,
                                                  'eval/n_train_steps': self.agent.network.global_step},
                                         step=self.agent.network.global_step)
-        # self.agent.network.log('eval/mean_reward', mean_reward)
-        # self.agent.network.log('eval/mean_pegs_left', mean_pegs_left)
-        # TODO: check if the appropriate way is not rather self.trainer.current_epoch/global_step.
-        # self.agent.network.log('eval/n_train_epochs', self.agent.network.current_epoch)
-        # self.agent.network.log('eval/n_train_steps', self.agent.network.global_step)
+
+    def save_agent(self):
+        self.trainer.save_checkpoint(
+            os.path.join(self.checkpoints_dir,
+                         f'{self.agent.network.current_epoch}_{self.agent.network.global_step}_last'))

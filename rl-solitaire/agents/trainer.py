@@ -51,6 +51,8 @@ class BaseTrainer:
                 with torch.no_grad():
                     self.evaluate_agent()
 
+            # TODO : save last agent
+            self.save_agent()
             self.agent_results_file.close()
 
     def collect_data(self) -> dict[str, np.ndarray]:
@@ -84,14 +86,19 @@ class BaseTrainer:
 
     def evaluate_agent(self):
         self.agent.set_evaluation_mode()
-        rewards, pegs_left = self.agent.evaluate(self.env, self.n_games_eval)
-        self.log_evaluation_results(rewards, pegs_left)
+        rewards, pegs_left = self.agent.evaluate(self.env, self.n_games_eval, greedy=False)
+        greedy_reward, greedy_pegs_left = self.agent.evaluate(self.env, greedy=True)  # only 1 game of greedy evaluation
+        self.log_evaluation_results(rewards, pegs_left, greedy_reward[0], greedy_pegs_left[0])
         pickle.dump({"rewards": rewards, "pegs_left": pegs_left}, self.agent_results_file)
 
-    def log_evaluation_results(self, rewards, pegs_left):
+    def log_evaluation_results(self, rewards: list[float], pegs_left: list[float], greedy_reward: float,
+                               greedy_pegs_left: float):
         mean_reward = np.mean(rewards)
         mean_pegs_left = np.mean(pegs_left)
         if (self.log_every is not None) and (self.current_iteration % self.log_every == 0):
             logger.info("Iteration {:,}: mean reward: {:.3f}, mean pegs left: {:.2f}".format(self.current_iteration,
                                                                                              mean_reward,
                                                                                              mean_pegs_left))
+
+    def save_agent(self):
+        pass

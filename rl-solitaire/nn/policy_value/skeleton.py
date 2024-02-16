@@ -150,6 +150,8 @@ class BasePolicyValueNet(BaseNet):
             self.log('train/full_entropy', torch.mean(full_entropy).detach().item(), logger=True)
             self.log('train/masked_entropy', torch.mean(masked_entropy).detach().item(), logger=True)
             self.log('train/kl_div_uniform', kl_div_uniform.detach().item(), on_step=True, logger=True)
+            self.log('train/n_feasible_actions', torch.mean(torch.sum(action_masks, dim=-1)).detach().item(),
+                     on_step=True, logger=True)
 
         # auxiliary loss metrics
         self.log('train/actor_loss', torch.mean(actor_loss).detach().item(), logger=True)

@@ -21,7 +21,7 @@ class BaseAgent:
     def set_evaluation_mode(self):
         pass
 
-    def play(self, env, render=False) -> (float, int):
+    def play(self, env, render=False, greedy=False) -> (float, int):
         """
         A method to interact with the environment until a terminal state is reached.
         :param env: the environment to interact with.
@@ -38,7 +38,7 @@ class BaseAgent:
             sleep(1.5)
 
         while not end:
-            action_index = self.select_action(env.state, env.feasible_actions)
+            action_index = self.select_action(env.state, env.feasible_actions, greedy=greedy)
             action = env.convert_action_id_to_action(action_index)
             if render:
                 env.render(action=action, show_action=True)  # render a first time displaying the action selected
@@ -129,12 +129,12 @@ class BaseAgent:
         """
         return np.array([])
 
-    def evaluate(self, env, n_games=1) -> (list[float], list[float]):
+    def evaluate(self, env, n_games=1, greedy=False) -> (list[float], list[float]):
         rewards = []
         pegs_left = []
         for _ in range(n_games):
             env.reset()
-            reward, n_pegs_left = self.play(env)
+            reward, n_pegs_left = self.play(env, greedy=greedy)
             rewards.append(reward)
             pegs_left.append(n_pegs_left)
 
