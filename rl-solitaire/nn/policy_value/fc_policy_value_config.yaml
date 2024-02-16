@@ -11,7 +11,7 @@ architecture:
   policy_head:
     hidden_dim: 256
     output_dim: 132  #  N_ACTIONS = 33*4 = 132
-    n_layers: 3
+    n_layers: 3 # 4
     bias: True
 
   value_head:
@@ -27,8 +27,8 @@ loss:
   actor_loss:
     name: "cross_entropy"
     reduction: "none"  # not mean because we need to multiply each sample in a batch by the advantage
-    label_smoothing: 0.0003
-    coef: 0.5
+    label_smoothing: 0.0001
+    coef: 1.8
   critic_loss:
     name: "mse"
     reduction: "mean"
@@ -43,5 +43,5 @@ initializer:
 
 optimizer:
   name: "adam"
-  lr: 1.0e-5  # 1e-5
+  lr: 1.0e-5  # 2e-5
   weight_decay: 1.0e-6

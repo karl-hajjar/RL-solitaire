@@ -1,7 +1,7 @@
-n_iter: 50
+n_iter: 200
 n_games_train: 20
-n_games_val: 50
+n_games_eval: 50
 n_steps_update:
 log_every: 10
 n_optim_steps:
-batch_size: int = 64
+batch_size: 64

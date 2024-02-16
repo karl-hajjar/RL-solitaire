@@ -2,7 +2,7 @@ from time import sleep
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .utils import mask_infeasible_actions
+from agents.utils import mask_infeasible_actions
 
 MIN_ACTION_PROBA = 1.0e-7
 

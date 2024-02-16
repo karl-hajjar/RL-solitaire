@@ -1,4 +1,6 @@
 import torch
+import importlib
+import os
 
 ACTIVATION_DICT = {'relu': torch.nn.ReLU,
                    'elu': torch.nn.ELU,
@@ -29,6 +31,8 @@ INIT_DICT = {'glorot_uniform': torch.nn.init.xavier_uniform_,
              'normal': torch.nn.init.normal_,
              'uniform': torch.nn.init.uniform_}
 DEFAULT_INIT = "he_normal"
+
+SUPPORTED_NETS_TO_CLASS_NAME = {'fc_policy_value': "policy_value.fully_connected.FCPolicyValueNet"}
 
 
 def get_activation(activation=None):
@@ -112,3 +116,23 @@ def compute_entropies_from_logits(logits: torch.Tensor, mask: torch.Tensor = Non
         return torch.sum(p_log_p, dim=1), torch.Tensor([])
     else:
         return torch.sum(p_log_p, dim=1), torch.sum(mask * p_log_p, dim=1)
+
+
+def get_network_class_from_name(name: str):
+    if name not in SUPPORTED_NETS_TO_CLASS_NAME.keys():
+        raise ValueError(f"Network {name} not in supported networks: {SUPPORTED_NETS_TO_CLASS_NAME.keys()}")
+    else:
+        dot_split_net_name = SUPPORTED_NETS_TO_CLASS_NAME[name].split('.')
+        net_class_name = dot_split_net_name[-1]
+        net_module = importlib.import_module(name='.'.join(['nn'] + dot_split_net_name[:-1]))
+        net_class = getattr(net_module, net_class_name)
+        return net_class
+
+
+def get_network_dir_from_name(name: str):
+    if name not in SUPPORTED_NETS_TO_CLASS_NAME.keys():
+        raise ValueError(f"Network {name} not in supported networks: {SUPPORTED_NETS_TO_CLASS_NAME.keys()}")
+    else:
+        dot_split_net_name = SUPPORTED_NETS_TO_CLASS_NAME[name].split('.')
+        net_dir = os.path.join('nn', *dot_split_net_name[:-2])  # last dot is class and penultimate dot is module
+        return net_dir
