@@ -1,0 +1,52 @@
+name:
+  "ConvPolicyValueNet"
+
+architecture:
+  embeddings:
+    input_dim: 3 # number of channels
+    hidden_dim: 256
+    residual_hidden_dim: 512
+    n_residual_blocks: 3
+    # n_layers: 2
+    bias: True
+
+  policy_head:
+    input_dim: 256
+    hidden_dim: 512
+    n_residual_blocks: 3
+    output_dim: 132  #  N_ACTIONS = 33*4 = 132
+    bias: True
+
+  value_head:
+    input_dim: 256
+    hidden_dim: 512
+    n_residual_blocks: 3
+    bias: True
+
+activation:
+  name: "gelu"
+  approximate: "tanh"
+
+loss:
+  actor_loss:
+    name: "cross_entropy"
+    reduction: "none"  # not mean because we need to multiply each sample in a batch by the advantage
+    label_smoothing: 0.0001
+    coef: 5.0 # 1.8
+  critic_loss:
+    name: "mse"
+    reduction: "mean"
+    coef: 1.0
+  regularization:
+    name: "entropy"
+    coef: 0.000001
+
+
+initializer:
+  name: "he_normal"
+
+optimizer:
+  name: "adam"
+  lr: 3.0e-5  # 2e-5
+  weight_decay: 1.0e-6
+

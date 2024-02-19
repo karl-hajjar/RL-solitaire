@@ -1,7 +1,7 @@
 import torch
 
 from ..base_net import BaseNet
-from ..utils import get_loss, compute_entropies_from_logits
+from ..utils import compute_entropies_from_logits
 
 
 DEFAULT_ACTOR_LOSS_DICT = {"name": "cross_entropy",
@@ -145,7 +145,7 @@ class BasePolicyValueNet(BaseNet):
         else:
             regularized_loss = loss
             with torch.no_grad():
-                kl_div_uniform = kl_div_uniform = torch.nn.functional.kl_div(
+                kl_div_uniform = torch.nn.functional.kl_div(
                     torch.nn.functional.log_softmax(logits),
                     feasible_actions_uniform_dist,
                     reduction="batchmean",
@@ -165,6 +165,7 @@ class BasePolicyValueNet(BaseNet):
         # auxiliary loss metrics
         self.log('train/actor_loss', torch.mean(actor_loss).detach().item(), logger=True)
         self.log('train/advantage_actor_loss', advantage_actor_loss.detach().item(), logger=True)
+        self.log('train/advantages', torch.mean(advantages).detach().item(), logger=True)
         self.log('train/critic_loss', critic_loss.detach().item(), logger=True)
         self.log('train/weighted_actor_loss', weighted_actor_loss.detach().item(), logger=True)
         self.log('train/weighted_critic_loss', weighted_critic_loss.detach().item(), logger=True)

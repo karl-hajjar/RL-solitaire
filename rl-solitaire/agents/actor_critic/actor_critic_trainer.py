@@ -142,4 +142,4 @@ class ActorCriticTrainer(BaseTrainer):
     def save_agent(self):
         self.trainer.save_checkpoint(
             os.path.join(self.checkpoints_dir,
-                         f'epoch={self.agent.network.current_epoch}_step={self.agent.network.global_step}'))
+                         f'epoch={self.agent.network.current_epoch}_step={self.agent.network.global_step}.ckpt'))

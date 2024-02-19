@@ -32,7 +32,8 @@ INIT_DICT = {'glorot_uniform': torch.nn.init.xavier_uniform_,
              'uniform': torch.nn.init.uniform_}
 DEFAULT_INIT = "he_normal"
 
-SUPPORTED_NETS_TO_CLASS_NAME = {'fc_policy_value': "policy_value.fully_connected.FCPolicyValueNet"}
+SUPPORTED_NETS_TO_CLASS_NAME = {'fc_policy_value': "policy_value.fully_connected.FCPolicyValueNet",
+                                'conv_policy_value': "policy_value.conv.ConvPolicyValueNet"}
 
 
 def get_activation(activation=None):
@@ -110,7 +111,7 @@ def compute_entropies_from_logits(logits: torch.Tensor, mask: torch.Tensor = Non
     :return:
     """
     log_probas = torch.nn.functional.log_softmax(logits, dim=1)
-    probas = torch.nn.functional.log_softmax(logits, dim=1)
+    probas = torch.nn.functional.softmax(logits, dim=1)
     p_log_p = probas * log_probas
     if mask is None:
         return torch.sum(p_log_p, dim=1), torch.Tensor([])

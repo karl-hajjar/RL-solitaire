@@ -32,6 +32,7 @@ def run(agent_name: str, network_name: str = None):
     run_dirname = strp_datetime(datetime.now())
     run_dir = os.path.join(agent_dir, RUNS_DIRNAME, run_dirname)
     log_filepath, checkpoints_dir, results_filepath = set_up_files_dirs_and_paths(run_dir)
+    logger = set_up_logger(path=log_filepath)
 
     # trainer config
     trainer_config_filename = f"{agent_name}_trainer_config.yaml"
@@ -42,7 +43,7 @@ def run(agent_name: str, network_name: str = None):
 
     # set seed
     seed = get_seed(trainer_config)
-    seed_everything(SEED)
+    seed_everything(seed)
 
     # define network
     if network_name is None:
@@ -73,7 +74,6 @@ def run(agent_name: str, network_name: str = None):
                             checkpoints_dir=checkpoints_dir, **trainer_config)
 
     # log run parameters
-    logger = set_up_logger(path=log_filepath)
     logger.info(f"---------  Running experiment with agent {agent_name} and network {network_name} ---------")
     logger.info(f"Saving run results and logs at {run_dir}")
     logger.info(f"Running with random seed {seed}")
@@ -107,4 +107,6 @@ def get_discount_factor(config_dict: dict) -> float:
 
 
 if __name__ == "__main__":
-    run(agent_name='actor_critic', network_name="fc_policy_value")
+    # network_name = "conv_policy_value"
+    network_name = "fc_policy_value"
+    run(agent_name='actor_critic', network_name=network_name)

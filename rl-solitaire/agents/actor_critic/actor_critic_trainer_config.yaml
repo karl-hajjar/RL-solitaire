@@ -1,7 +1,7 @@
-n_iter: 2000  # 2000
-n_games_train: 20
-n_games_eval: 50
-n_steps_update:
+batch_size: 64
 log_every: 10
-n_optim_steps:
-batch_size: 80
+n_games_eval: 50
+n_games_train: 20
+n_iter: 8000
+n_optim_steps: null
+n_steps_update: null

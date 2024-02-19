@@ -1,47 +1,38 @@
-name:
-  "FCPolicyValueNet"
-
+activation:
+  approximate: tanh
+  name: gelu
 architecture:
   embeddings:
-    input_dim: 147 # 7*7*3
+    bias: true
+    hidden_dim: 256
+    input_dim: 147
+    n_layers: 2
+  policy_head:
+    bias: true
     hidden_dim: 256
     n_layers: 3
-    bias: True
-
-  policy_head:
-    hidden_dim: 256
-    output_dim: 132  #  N_ACTIONS = 33*4 = 132
-    n_layers: 5 # 4
-    bias: True
-
+    output_dim: 132
   value_head:
+    bias: true
     hidden_dim: 256
     n_layers: 4
-    bias: True
-
-activation:
-  name: "gelu"
-  approximate: "tanh"
-
+initializer:
+  name: he_normal
 loss:
   actor_loss:
-    name: "cross_entropy"
-    reduction: "none"  # not mean because we need to multiply each sample in a batch by the advantage
+    coef: 1.8
     label_smoothing: 0.0001
-    coef: 5.0 # 1.8
+    name: cross_entropy
+    reduction: none
   critic_loss:
-    name: "mse"
-    reduction: "mean"
     coef: 1.0
+    name: mse
+    reduction: mean
   regularization:
-    name: "entropy"
-    coef: 0.000001
-
-
-initializer:
-  name: "he_normal"
-
+    coef: 1.0e-06
+    name: entropy
+name: FCPolicyValueNet
 optimizer:
-  name: "adam"
-  lr: 3.0e-5  # 2e-5
-  weight_decay: 1.0e-6
+  lr: 2.0e-05
+  name: adam
+  weight_decay: 1.0e-06
