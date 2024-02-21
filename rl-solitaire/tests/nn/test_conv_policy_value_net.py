@@ -85,6 +85,39 @@ class TestConvPolicyValueNet(unittest.TestCase):
         self.assertSequenceEqual(policies.shape, (batch_size, N_ACTIONS))
         self.assertSequenceEqual(values.shape, (batch_size, 1))
 
+    def test_convnet_inner_activations(self):
+        net = ConvPolicyValueNet(config=self.conv_net_config)
+        hidden_dim = self.conv_net_config.architecture_config["embeddings"]["hidden_dim"]
+        # residual_hidden_dim = self.conv_net_config.architecture_config["embeddings"]["residual_hidden_dim"]
+        batch_size = 64
+        x = torch.randn(batch_size, 7, 7, 3)
+        x = net._reshape_2d_input(x)
+        self.assertSequenceEqual(x.shape, (batch_size, 3, 7, 7))
+        with torch.no_grad():
+            h = net.state_embeddings.input_conv(x)
+            self.assertSequenceEqual(h.shape, (batch_size, hidden_dim, 7, 7))
+
+            h = net.state_embeddings.residual_blocks.batchnorm1(h)
+            self.assertSequenceEqual(h.shape, (batch_size, hidden_dim, 7, 7))
+
+            h = net.state_embeddings.residual_blocks.residual1(h)
+            self.assertSequenceEqual(h.shape, (batch_size, hidden_dim, 7, 7))
+
+            h_state = net.state_embeddings(x)
+            self.assertSequenceEqual(h_state.shape, (batch_size, hidden_dim, 7, 7))
+
+            h = net.policy_head.residual_blocks.batchnorm1(h_state)
+            self.assertSequenceEqual(h.shape, (batch_size, hidden_dim, 7, 7))
+
+            h = net.policy_head.residual_blocks.residual1(h)
+            self.assertSequenceEqual(h.shape, (batch_size, hidden_dim, 7, 7))
+
+            h = net.value_head.residual_blocks.batchnorm1(h_state)
+            self.assertSequenceEqual(h.shape, (batch_size, hidden_dim, 7, 7))
+
+            h = net.value_head.residual_blocks.residual1(h)
+            self.assertSequenceEqual(h.shape, (batch_size, hidden_dim, 7, 7))
+
 
 if __name__ == '__main__':
     unittest.main()

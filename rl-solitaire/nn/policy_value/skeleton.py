@@ -129,7 +129,12 @@ class BasePolicyValueNet(BaseNet):
             if self.regularization_type == "entropy":
                 kl_div_uniform = self.regularization_loss(torch.nn.functional.log_softmax(logits, dim=-1),
                                                           feasible_actions_uniform_dist)
-                regularized_loss = loss + self.regularization_coef * kl_div_uniform
+                weighted_penalty = self.regularization_coef * kl_div_uniform
+                regularized_loss = loss + weighted_penalty
+                self.log('train/penalty', kl_div_uniform.detach().item(),
+                         on_step=True, logger=True)
+                self.log('train/weighted_penalty', weighted_penalty.detach().item(),
+                         prog_bar=True, on_step=True, logger=True)
                 self.log('train/regularized_loss', regularized_loss.detach().item(),
                          prog_bar=True, on_step=True, logger=True)
             else:

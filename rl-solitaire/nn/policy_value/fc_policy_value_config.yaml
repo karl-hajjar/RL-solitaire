@@ -10,12 +10,12 @@ architecture:
   policy_head:
     bias: true
     hidden_dim: 256
-    n_layers: 3
+    n_layers: 1
     output_dim: 132
   value_head:
     bias: true
     hidden_dim: 256
-    n_layers: 4
+    n_layers: 1
 initializer:
   name: he_normal
 loss:
@@ -29,10 +29,10 @@ loss:
     name: mse
     reduction: mean
   regularization:
-    coef: 1.0e-06
+    coef: 1.0e-03
     name: entropy
 name: FCPolicyValueNet
 optimizer:
   lr: 2.0e-05
   name: adam
-  weight_decay: 1.0e-06
+  weight_decay: 1.0e-04

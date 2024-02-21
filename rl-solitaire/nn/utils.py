@@ -114,9 +114,9 @@ def compute_entropies_from_logits(logits: torch.Tensor, mask: torch.Tensor = Non
     probas = torch.nn.functional.softmax(logits, dim=1)
     p_log_p = probas * log_probas
     if mask is None:
-        return torch.sum(p_log_p, dim=1), torch.Tensor([])
+        return -torch.sum(p_log_p, dim=1), torch.Tensor([])
     else:
-        return torch.sum(p_log_p, dim=1), torch.sum(mask * p_log_p, dim=1)
+        return -torch.sum(p_log_p, dim=1), -torch.sum(mask * p_log_p, dim=1)
 
 
 def get_network_class_from_name(name: str):
