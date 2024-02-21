@@ -1,0 +1,22 @@
+name:
+  "BasicNetwork"
+
+architecture:
+  n_layers: 3
+  bias: True
+
+activation:
+  name: "relu"
+
+loss:
+  name: "cross_entropy"
+  reduction: "mean"
+  label_smoothing: 0.001
+
+initializer:
+  name: "glorot_uniform"
+
+optimizer:
+  name: "sgd"
+  lr: 1.0e-4
+  weight_decay: 1.0e-6

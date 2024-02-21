@@ -1,20 +1,18 @@
 from __future__ import print_function
 import numpy as np
-import tensorflow as tf
-from time import time, sleep
+from time import sleep
 from tqdm import tqdm
 import os
 import pickle
 import logging
 import warnings
-from copy import deepcopy
 from multiprocessing.dummy import Pool as ThreadPool
 from random import shuffle 
 
 from env.env import Env
-from agent import ActorCriticAgent, RandomAgent
+from agents.base_agent import ActorCriticAgent, RandomAgent
 from util import read_config, flush_or_create
-from buffer import Buffer
+from utils.buffer import Buffer
 
 warnings.filterwarnings("ignore")
 
@@ -185,7 +183,7 @@ def main():
 	logger = logging.getLogger(__name__)
 
 	if prefill_buffer:
-		# populate buffer with intial data from random games
+		# populate buffer with initial data from random games
 		print('\nPopulating Buffer ... \n')
 		populate_buffer(agent, n_workers_train, data_buffer)
 

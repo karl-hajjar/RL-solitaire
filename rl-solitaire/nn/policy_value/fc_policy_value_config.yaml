@@ -1,0 +1,38 @@
+activation:
+  approximate: tanh
+  name: gelu
+architecture:
+  embeddings:
+    bias: true
+    hidden_dim: 256
+    input_dim: 147
+    n_layers: 2
+  policy_head:
+    bias: true
+    hidden_dim: 256
+    n_layers: 1
+    output_dim: 132
+  value_head:
+    bias: true
+    hidden_dim: 256
+    n_layers: 1
+initializer:
+  name: he_normal
+loss:
+  actor_loss:
+    coef: 1.8
+    label_smoothing: 0.0001
+    name: cross_entropy
+    reduction: none
+  critic_loss:
+    coef: 1.0
+    name: mse
+    reduction: mean
+  regularization:
+    coef: 1.0e-03
+    name: entropy
+name: FCPolicyValueNet
+optimizer:
+  lr: 2.0e-05
+  name: adam
+  weight_decay: 1.0e-04

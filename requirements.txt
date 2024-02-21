@@ -1,0 +1,14 @@
+Click
+click
+numpy
+pyyaml
+pytest
+matplotlib
+seaborn
+notebook
+torch
+pytorch-lightning
+tensorboard
+neptune
+tqdm
+scipy
