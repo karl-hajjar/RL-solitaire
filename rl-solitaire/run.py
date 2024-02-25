@@ -93,14 +93,20 @@ def set_up_files_dirs_and_paths(run_dir: str) -> (str, str, str):
 
 
 def get_seed(config_dict: dict) -> int:
-    if ("seed" not in config_dict) or (config_dict["seed"] is None):
+    if "seed" not in config_dict:
+        return SEED
+    elif config_dict["seed"] is None:
+        config_dict.pop("seed")
         return SEED
     else:
         return config_dict.pop("seed")
 
 
 def get_discount_factor(config_dict: dict) -> float:
-    if ("discount" not in config_dict.keys()) or (config_dict["discount"] is None):
+    if "discount" not in config_dict.keys():
+        return DEFAULT_DISCOUNT_FACTOR
+    elif config_dict["discount"] is None:
+        config_dict.pop("discount")
         return DEFAULT_DISCOUNT_FACTOR
     else:
         return config_dict.pop("discount")
@@ -109,4 +115,6 @@ def get_discount_factor(config_dict: dict) -> float:
 if __name__ == "__main__":
     # network_name = "conv_policy_value"
     network_name = "fc_policy_value"
-    run(agent_name='actor_critic', network_name=network_name)
+    # agent_name = 'actor_critic'
+    agent_name = 'ppo'
+    run(agent_name=agent_name, network_name=network_name)

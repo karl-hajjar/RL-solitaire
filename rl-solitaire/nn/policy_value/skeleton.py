@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import softmax, log_softmax, kl_div
 
 from ..base_net import BaseNet
 from ..utils import compute_entropies_from_logits
@@ -67,7 +68,7 @@ class BasePolicyValueNet(BaseNet):
         self.critic_loss = self._get_loss(loss_config["critic_loss"])
 
     def get_policy(self, x: torch.Tensor):
-        return self.policy_head(self.state_embeddings(x))
+        return softmax(self.policy_head(self.state_embeddings(x)), dim=-1)
 
     def get_value(self, x: torch.Tensor):
         return self.value_head(self.state_embeddings(x))
@@ -111,11 +112,18 @@ class BasePolicyValueNet(BaseNet):
         :param batch_nb: int, the index of the current batch
         :return: dict with the training metrics.
         """
-        states, action_indices, action_masks, advantages, value_targets = batch
-        logits, values = self.forward(states)
+        if len(batch) == 5:  # standard way of training the network
+            states, action_indices, action_masks, advantages, value_targets = batch
+            logits, values = self.forward(states)
+            actor_loss = self.actor_loss(logits, action_indices)
+            advantage_actor_loss = torch.mean(advantages * actor_loss)
+        elif len(batch) == 6:  # PPO network needs action probabilities from old policy
+            states, action_indices, action_probas, action_masks, advantages, value_targets = batch
+            logits, values = self.forward(states)
+            advantage_actor_loss = self.actor_loss(logits, action_indices, action_probas, advantages)
+        else:
+            raise ValueError(f"Batch length must be 5 or 6 but was {len(batch)}")
 
-        actor_loss = self.actor_loss(logits, action_indices)
-        advantage_actor_loss = torch.mean(advantages * actor_loss)
         critic_loss = self.critic_loss(values, value_targets)
         weighted_actor_loss = self.actor_coef * advantage_actor_loss
         weighted_critic_loss = self.critic_coef * critic_loss
@@ -164,13 +172,17 @@ class BasePolicyValueNet(BaseNet):
             self.log('train/full_entropy', torch.mean(full_entropy).detach().item(), logger=True)
             self.log('train/masked_entropy', torch.mean(masked_entropy).detach().item(), logger=True)
             self.log('train/kl_div_uniform', kl_div_uniform.detach().item(), on_step=True, logger=True)
+            self.log('train/feasible_actions_proba', 
+                     torch.mean(torch.sum(softmax(logits) * action_masks, dim=-1)).detach().item(),
+                     on_step=True, logger=True)
             self.log('train/n_feasible_actions', torch.mean(torch.sum(action_masks, dim=-1)).detach().item(),
                      on_step=True, logger=True)
 
         # auxiliary loss metrics
-        self.log('train/actor_loss', torch.mean(actor_loss).detach().item(), logger=True)
-        self.log('train/advantage_actor_loss', advantage_actor_loss.detach().item(), logger=True)
+        if len(batch) == 5:
+            self.log('train/actor_loss', torch.mean(actor_loss).detach().item(), logger=True)
         self.log('train/advantages', torch.mean(advantages).detach().item(), logger=True)
+        self.log('train/advantage_actor_loss', advantage_actor_loss.detach().item(), logger=True)
         self.log('train/critic_loss', critic_loss.detach().item(), logger=True)
         self.log('train/weighted_actor_loss', weighted_actor_loss.detach().item(), logger=True)
         self.log('train/weighted_critic_loss', weighted_critic_loss.detach().item(), logger=True)

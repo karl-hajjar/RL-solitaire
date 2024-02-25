@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import softmax
 
 from nn.blocks.residual import ResidualBlock
 from nn.network_config import NetConfig
@@ -95,7 +96,7 @@ class ConvPolicyValueNet(BasePolicyValueNet):
         return x.reshape(x.shape[0], x.shape[-1], x.shape[1], x.shape[2])
 
     def get_policy(self, x: torch.Tensor) -> torch.Tensor:
-        return self.policy_head(self.state_embeddings(self._reshape_2d_input(x)))
+        return softmax(self.policy_head(self.state_embeddings(self._reshape_2d_input(x))), dim=-1)
 
     def get_value(self, x: torch.Tensor) -> torch.Tensor:
         return self.value_head(self.state_embeddings(self._reshape_2d_input(x)))

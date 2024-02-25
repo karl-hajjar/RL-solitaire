@@ -4,8 +4,8 @@ from ..base_agent import BaseAgent
 import torch
 
 
-class ActorCriticAgent(BaseAgent):
-    """ActorCriticAgent implements a class of agents using the actor-critic method."""
+class PPOAgent(BaseAgent):
+    """PPOAgent implements a class of agents using Proximal Policy Optimization (PPO) methods."""
 
     def __init__(self, network: torch.nn.Module, name="ActorCriticAgent", discount=1.0):
         super().__init__(name, discount)
@@ -42,6 +42,10 @@ class ActorCriticAgent(BaseAgent):
         states = np.array(states)
         bootstrapped_state_values = self.get_value(states).reshape(-1)
 
+        # get old policy for each all states in a batch to save time
+        old_policies = self.get_policy(states)
+        actions = np.array(actions)
+
         assert (t == len(rewards) == len(actions) == len(bootstrapped_state_values))
         reversed_value_targets = []
         reversed_advantages = []
@@ -51,7 +55,8 @@ class ActorCriticAgent(BaseAgent):
             reversed_advantages.append(value - bootstrapped_state_values[t - s - 1])
 
         return {"states": states,
-                "actions": np.array(actions),
+                "actions": actions,
+                "action_probas": old_policies[np.arange(t), actions].reshape(-1, 1),
                 "action_masks": np.array(action_masks).astype(np.float32),
                 "advantages": np.array(reversed_advantages[::-1]).reshape(-1, 1).astype(np.float32),
                 "value_targets": np.array(reversed_value_targets[::-1]).reshape(-1, 1).astype(np.float32)}

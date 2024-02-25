@@ -21,18 +21,19 @@ initializer:
 loss:
   actor_loss:
     coef: 1.8
-    label_smoothing: 0.0001
-    name: cross_entropy
-    reduction: none
+    name: ppo_clip
+#    label_smoothing: 0.000001
+#    name: cross_entropy
+#    reduction: none
   critic_loss:
     coef: 1.0
     name: mse
     reduction: mean
   regularization:
-    coef: 1.0e-03
+    coef: 1.0e-04
     name: entropy
 name: FCPolicyValueNet
 optimizer:
   lr: 2.0e-05
   name: adam
-  weight_decay: 1.0e-04
+  weight_decay: 1.0e-05

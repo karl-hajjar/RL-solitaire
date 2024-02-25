@@ -1,7 +1,7 @@
 import numpy as np
 import importlib
 
-SUPPORTED_AGENTS = {'actor_critic'}
+SUPPORTED_AGENTS = {'actor_critic', 'ppo'}
 
 
 def mask_infeasible_actions(policy: np.array, feasible_action_indices: np.array, normalize=True) -> np.array:
@@ -42,7 +42,10 @@ def get_class_name_from_name(name: str, class_type) -> str:
         raise ValueError(f"`class_type` argument must be 'Agent' or 'Trainer' but was {class_type}")
     try:
         names = name.split('_')
-        class_name = ''.join([name_[0].upper() + name_[1:] for name_ in names]) + class_type
+        if len(names) == 1:
+            class_name = names[0].upper() + class_type
+        else:
+            class_name = ''.join([name_[0].upper() + name_[1:] for name_ in names]) + class_type
     except:
         try:
             names = name.split('_')

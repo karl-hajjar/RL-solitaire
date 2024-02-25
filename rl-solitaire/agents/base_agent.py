@@ -79,7 +79,7 @@ class BaseAgent:
         return action_index
 
     def collect_data(self, env, T=None) -> dict[str, np.ndarray]:
-        states, actions, action_masks, rewards, next_state, end = self.collect_data_(env, T=None)
+        states, actions, action_masks, rewards, next_state, end = self.collect_data_(env, T=T)
         return self._format_data(states, actions, action_masks, rewards, next_state, end)
 
     def collect_data_(self, env, T=None) -> (list[np.ndarray], list[int], list[float], list[float], np.ndarray, bool):

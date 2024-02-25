@@ -6,14 +6,14 @@ architecture:
     input_dim: 3 # number of channels
     hidden_dim: 32
     residual_hidden_dim: 64
-    n_residual_blocks: 2
+    n_residual_blocks: 1
     # n_layers: 2
     bias: True
 
   policy_head:
     input_dim: 32
     hidden_dim: 64
-    n_residual_blocks: 2
+    n_residual_blocks: 1
     output_dim: 132  #  N_ACTIONS = 33*4 = 132
     bias: True
 

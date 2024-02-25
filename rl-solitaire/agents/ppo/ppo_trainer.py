@@ -1,5 +1,6 @@
 import logging
 import os
+
 import numpy as np
 import torch
 from pytorch_lightning import Trainer
@@ -7,46 +8,48 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, NeptuneLogger
 from torch.utils.data import Dataset, DataLoader
 
-from agents.actor_critic.actor_critic_agent import ActorCriticAgent
+from agents.ppo.ppo_agent import PPOAgent
 from agents.trainer import BaseTrainer, NEPTUNE_PROJECT_NAME
 from env.env import Env
 
 logger = logging.getLogger()
 
-
 SUPPORTED_LOGGER_NAMES = {"tensorboard", "neptune", "wandb"}
 
 
-class ActorCriticDataset(Dataset):
-    def __init__(self, states: torch.Tensor, action_indices: torch.Tensor, action_masks: torch.Tensor,
-                 advantages: torch.Tensor, value_targets: torch.Tensor):
+class PPODataset(Dataset):
+    def __init__(self, states: torch.Tensor, action_indices: torch.Tensor, action_probas: torch.Tensor,
+                 action_masks: torch.Tensor, advantages: torch.Tensor, value_targets: torch.Tensor):
         super().__init__()
         assert (len(states) == len(action_indices) == len(action_masks) == len(advantages) == len(value_targets))
         self.states = states
         self.action_indices = action_indices.long()
+        self.action_probas = action_probas
         self.action_masks = action_masks
         self.advantages = advantages
         self.value_targets = value_targets
 
     def __getitem__(self, index) -> (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor):
-        return self.states[index], self.action_indices[index], self.action_masks[index], self.advantages[index], \
+        return self.states[index], self.action_indices[index], self.action_probas[index], self.action_masks[index], \
+               self.advantages[index], \
                self.value_targets[index]
 
     def __len__(self):
         return len(self.states)
 
 
-class ActorCriticTrainer(BaseTrainer):
+class PPOTrainer(BaseTrainer):
     """
-    A Trainer class for actor-critic agents.
+    A Trainer class for PPO agents.
     """
-    def __init__(self, env: Env, agent: ActorCriticAgent, n_iter: int, n_games_train: int, agent_results_filepath: str,
+
+    def __init__(self, env: Env, agent: PPOAgent, n_iter: int, n_games_train: int, agent_results_filepath: str,
                  n_steps_update: int = None, log_every: int = None, n_games_eval: int = 10, n_optim_steps: int = None,
                  batch_size: int = 64, log_dir: str = None, checkpoints_dir: str = None):
         super().__init__(env, agent, n_iter, n_games_train, agent_results_filepath, n_steps_update, log_every,
                          n_games_eval)
         # TODO: create a config class for trainers
-        self._name = "ActorCriticTrainer"
+        self._name = "PPOTrainer"
         self.batch_size = batch_size
         self.checkpoints_dir = checkpoints_dir
 
@@ -94,15 +97,16 @@ class ActorCriticTrainer(BaseTrainer):
             raise ValueError(f"Logger with name {name} is not supported. Supported logger names are : "
                              f"{SUPPORTED_LOGGER_NAMES}")
 
-    def prepare_dataset(self, data: dict[str, np.array]) -> ActorCriticDataset:
+    def prepare_dataset(self, data: dict[str, np.array]) -> PPODataset:
         data = self.reformat_data(data)
-        return ActorCriticDataset(states=data["states"],
-                                  action_indices=data["actions"],
-                                  action_masks=data["action_masks"],
-                                  advantages=data["advantages"],
-                                  value_targets=data["value_targets"])
+        return PPODataset(states=data["states"],
+                          action_indices=data["actions"],
+                          action_probas=data["action_probas"],
+                          action_masks=data["action_masks"],
+                          advantages=data["advantages"],
+                          value_targets=data["value_targets"])
 
-    def prepare_dataloader(self, dataset: ActorCriticDataset) -> DataLoader:
+    def prepare_dataloader(self, dataset: PPODataset) -> DataLoader:
         return DataLoader(dataset, shuffle=True, batch_size=self.batch_size)
 
     def reformat_data(self, data: dict[str, np.array]) -> dict[str, torch.Tensor]:
