@@ -1,5 +1,5 @@
 import torch
-from torch.nn.functional import softmax, log_softmax, kl_div
+from torch.nn.functional import softmax
 
 from ..base_net import BaseNet
 from ..utils import compute_entropies_from_logits

@@ -49,8 +49,8 @@ class TestPPOAgent(unittest.TestCase):
         self.assertTrue(data["advantages"].dtype == np.float32)
         self.assertTrue(data["value_targets"].dtype == np.float32)
 
-        self.assertTrue((data["action_probas"] >= 0).all())
-        self.assertTrue((data["action_probas"] <= 1).all())
+        self.assertTrue((data["action_probas"] > 0).all())
+        self.assertTrue((data["action_probas"] < 1).all())
 
     def test_trainer_collect_data(self):
         network = FCPolicyValueNet(config=self.net_config)
@@ -159,8 +159,8 @@ class TestPPOAgent(unittest.TestCase):
             self.assertSequenceEqual(item[4].shape, (1,))
             self.assertSequenceEqual(item[5].shape, (1,))
 
-            self.assertTrue((dataset.action_probas >= 0).all())
-            self.assertTrue((dataset.action_probas <= 1).all())
+            self.assertTrue((dataset.action_probas > 0).all())
+            self.assertTrue((dataset.action_probas < 1).all())
 
     def test_prepare_dataloader(self):
         network = FCPolicyValueNet(config=self.net_config)

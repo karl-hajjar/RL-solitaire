@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import softmax
 
 from nn.network_config import NetConfig
 from .skeleton import BasePolicyValueNet
@@ -53,7 +54,7 @@ class FCPolicyValueNet(BasePolicyValueNet):
                                    module=torch.nn.Linear(in_features=hidden_dim, out_features=output_dim, bias=bias))
 
     def get_policy(self, x: torch.Tensor) -> torch.Tensor:
-        return self.policy_head(self.state_embeddings(torch.flatten(x, start_dim=1, end_dim=-1)))
+        return softmax(self.policy_head(self.state_embeddings(torch.flatten(x, start_dim=1, end_dim=-1))), dim=-1)
 
     def get_value(self, x: torch.Tensor) -> torch.Tensor:
         # 2 * torch.nn.functional.sigmoid((self.value_head(

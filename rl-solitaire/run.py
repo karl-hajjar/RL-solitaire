@@ -115,6 +115,6 @@ def get_discount_factor(config_dict: dict) -> float:
 if __name__ == "__main__":
     # network_name = "conv_policy_value"
     network_name = "fc_policy_value"
-    # agent_name = 'actor_critic'
-    agent_name = 'ppo'
+    agent_name = 'actor_critic'
+    # agent_name = 'ppo'
     run(agent_name=agent_name, network_name=network_name)
