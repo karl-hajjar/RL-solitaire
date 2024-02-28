@@ -1,5 +1,4 @@
 import torch
-from torch.nn.functional import softmax
 
 from nn.blocks.residual import ResidualBlock
 from nn.network_config import NetConfig
@@ -14,6 +13,7 @@ class ConvPolicyValueNet(BasePolicyValueNet):
 
     def __init__(self, config: NetConfig):
         super().__init__(config)
+        self._set_src_mask()
 
     # TODO: change default kernel size to 3x3 instead.
     def _build_state_embeddings(self, n_residual_blocks: int, input_dim: int, hidden_dim: int, n_layers: int = 2,
@@ -95,21 +95,5 @@ class ConvPolicyValueNet(BasePolicyValueNet):
         """
         return x.reshape(x.shape[0], x.shape[-1], x.shape[1], x.shape[2])
 
-    def get_policy(self, x: torch.Tensor) -> torch.Tensor:
-        return softmax(self.policy_head(self.state_embeddings(self._reshape_2d_input(x))), dim=-1)
-
-    def get_value(self, x: torch.Tensor) -> torch.Tensor:
-        return self.value_head(self.state_embeddings(self._reshape_2d_input(x)))
-
-    def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
-        """
-        Outputs the policies and values associated with a batch of states. The states are flattened along non-batch
-        dimension.
-        :param x: a torch.Tensor representing a state or a batch of states of shape (n_batch, state_shape).
-        :return: (policies, values) of type (torch.Tensor, torch.Tensor) where policies is of shape (n_batch, N_ACTIONS)
-        and values is oh shape (n_batch, 1).
-        """
-        x = self._reshape_2d_input(x)
-        x = self.state_embeddings(x)
-        # return self.policy_head(x), 2 * torch.nn.functional.sigmoid()(value_head(x))
-        return self.policy_head(x), self.value_head(x)
+    def reformat_input(self, x: torch.Tensor) -> torch.Tensor:
+        return self._reshape_2d_input(x)

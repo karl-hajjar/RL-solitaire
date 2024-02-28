@@ -76,12 +76,25 @@ def _compute_out_of_border_actions(grid):
     return out_of_border
 
 
+def _get_board_mask() -> np.array:
+    """
+    Returns the flattened version of a 2d bool array containing True at index (i,j) iff the position (i,j) is not out of
+    the border of the board.
+    :return: a bool array of shape (len(GRID)).
+    """
+    board_mask = np.zeros((7, 7), dtype=bool)
+    for i, j in POS_TO_INDICES.values():
+        board_mask[i, j] = True
+    return board_mask.reshape(-1)
+
+
 OUT_OF_BORDER_ACTIONS = _compute_out_of_border_actions(GRID)
 
 
 class Env(object):
     """A class implementing the solitaire environment"""
     N_MAX_STEPS = N_PEGS
+    _BOARD_MASK = _get_board_mask()
 
     def __init__(self, verbose=False, init_fig=False, interactive_plot=False):
         '''
@@ -187,6 +200,10 @@ class Env(object):
     @staticmethod
     def convert_action_id_to_action(action_index):
         return divmod(action_index, len(MOVES))
+
+    @property
+    def board_mask(self):
+        return self._BOARD_MASK
 
     @property
     def state(self):

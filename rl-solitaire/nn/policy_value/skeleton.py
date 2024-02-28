@@ -67,19 +67,29 @@ class BasePolicyValueNet(BaseNet):
         loss_config["critic_loss"].pop("coef")
         self.critic_loss = self._get_loss(loss_config["critic_loss"])
 
+    def reformat_input(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Optional method to reformat input depending on the network architectures inheriting from this class. This
+        method is the identity mapping by default.
+        :param x: Tensor containing the input tensor of shape (N, 7, 7, N_STATE_CHANNELS).
+        :return: A Tensor containing the reformatted input of shape (N, reformatted_shape).
+        """
+        return x
+
     def get_policy(self, x: torch.Tensor):
-        return softmax(self.policy_head(self.state_embeddings(x)), dim=-1)
+        return softmax(self.policy_head(self.state_embeddings(self.reformat_input(x))), dim=-1)
 
     def get_value(self, x: torch.Tensor):
-        return self.value_head(self.state_embeddings(x))
+        return self.value_head(self.state_embeddings(self.reformat_input(x)))
 
     def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         """
         Outputs the policies and values associated with a batch of states.
-        :param x: a torch.Tensor representing a state or a batch of states of shape (n_batch, state_shape).
-        :return: (policies, values) of type (torch.Tensor, torch.Tensor) where policies is of shape (n_batch, N_ACTIONS)
-        and values is oh shape (n_batch, 1).
+        :param x: a torch.Tensor representing a state or a batch of states of shape (N, state_shape).
+        :return: (policies, values) of type (torch.Tensor, torch.Tensor) where policies is of shape (N, N_ACTIONS)
+        and values is of shape (N, 1).
         """
+        x = self.reformat_input(x)
         x = self.state_embeddings(x)
         return self.policy_head(x), self.value_head(x)
 

@@ -31,6 +31,27 @@ class BaseNet(LightningModule):
     def _set_name(self, name: str):
         self._name = name
 
+    @staticmethod
+    def _get_board_mask():
+        """
+        Sets the attribute `board_mask` to a flattened version of the 2d 7x7 bool Tensor where indices (i,j) outside the
+        board are set to True (positions are masked if the corresponding index is outside the board). self.board_mask is
+        thus a bool Tensor of shape (49,).
+        :return:
+        """
+        with torch.no_grad():
+            board_mask = torch.zeros(size=(7, 7), requires_grad=False, dtype=torch.bool)
+            board_mask[:2, :2] = True
+            board_mask[:2, 5:] = True
+            board_mask[5:, :2] = True
+            board_mask[5:, 5:] = True
+
+        return board_mask.reshape(-1)
+
+    def _set_src_mask(self):
+        board_mask = self._get_board_mask()
+        self.src_mask = board_mask.repeat((len(board_mask), 1))
+
     def _set_activation(self, name: str = None, **kwargs):
         activation_class = get_activation(name)
         self.activation = activation_class(**kwargs)

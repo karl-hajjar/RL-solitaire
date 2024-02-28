@@ -4,18 +4,27 @@ activation:
 architecture:
   embeddings:
     bias: true
-    hidden_dim: 256
-    input_dim: 147  # 7*7*3
-    n_layers: 3
+    hidden_dim: 128
+    feedforward_hidden_dim: 256
+    n_heads: 4
+    input_dim: 3
+    n_layers: 2
   policy_head:
     bias: true
-    hidden_dim: 256
-    n_layers: 3
-    output_dim: 132
+    hidden_dim: 128
+    feedforward_hidden_dim: 256
+    n_heads: 4
+    input_dim: 128
+    n_layers: 1
+    output_dim: 4
   value_head:
     bias: true
-    hidden_dim: 256
-    n_layers: 2
+    hidden_dim: 128
+    feedforward_hidden_dim: 256
+    n_heads: 4
+    input_dim: 128
+    n_layers: 1
+    output_dim: 1
 initializer:
   name: he_normal
 loss:
@@ -32,7 +41,7 @@ loss:
   regularization:
     coef: 1.0e-04
     name: entropy
-name: FCPolicyValueNet
+name: TransformerPolicyValueNet
 optimizer:
   lr: 3.0e-05
   name: adam
