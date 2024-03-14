@@ -44,7 +44,7 @@ To visualise the logs during training, under the directory name_of_the_agent/run
 tensorboard --logdir . 
 ```
 
-and then go to http://localhost:6006/ in your browser. If you are using the Neptune logger, logs will automatically appear in your Neptune project browser.
+and then go to http://localhost:6006/ in your browser. If you are using the Neptune logger, logs will automatically appear in your Neptune project browser: go to [https://app.neptune.ai/o](https://app.neptune.ai/o) and go to your project name to check your latest run.
 
 At the end of training, if you wish to see a demo of the agent completing the game, run the following command : 
 
